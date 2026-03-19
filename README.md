@@ -1,4 +1,4 @@
-# LPC Overlay Distortion Data Mocker
+# LPC - Wafer Overlay Distortion Data Mocker
 
 A browser-based visual sandbox for generating, inspecting, editing, and exporting wafer overlay distortion data.
 
