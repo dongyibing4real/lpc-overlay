@@ -1,0 +1,424 @@
+import React, { useRef, useEffect, useState } from 'react';
+import * as d3 from 'd3';
+import { WaferBoundary } from './WaferBoundary';
+import { FieldGrid } from './FieldGrid';
+import { DieGrid } from './DieGrid';
+import { DisplacementVectorLayer } from './DisplacementVector';
+import { FieldVectorLayer } from './FieldVectorLayer';
+import { MiniWaferMap } from './MiniWaferMap';
+import { useWaferLayout } from '../../hooks/useWaferLayout';
+import { useWaferStore } from '../../store/useWaferStore';
+import { StatsSidebar } from '../StatsSidebar';
+import { FieldEditPanel } from '../FieldEditPanel';
+
+interface Props {
+  variant: 'interactive' | 'reference';
+  title: string;
+}
+
+export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
+  const FLOATING_PANEL_WIDTH = 212;
+  const FLOATING_PANEL_TOP = 56;
+  const FLOATING_PANEL_MARGIN = 12;
+  const FLOATING_PANEL_FALLBACK_HEIGHT = 248;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const zoomGroupRef = useRef<SVGGElement>(null);
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const dragPanelRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+  const [canvasSize, setCanvasSize] = useState(480);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [fieldPanelPos, setFieldPanelPos] = useState<{ x: number; y: number } | null>(null);
+  const [isFieldPanelAuto, setIsFieldPanelAuto] = useState(true);
+  const layoutConfig = useWaferStore((s) => s.layoutConfig);
+  const waferDistortion = useWaferStore((s) => s.waferDistortion);
+  const fieldDistortion = useWaferStore((s) => s.fieldDistortion);
+  const granularity = useWaferStore((s) => s.viewState.granularity);
+  const selectField = useWaferStore((s) => s.selectField);
+  const selectedFieldId = useWaferStore((s) => s.selectedFieldId);
+  const selectedFieldTransform = useWaferStore((s) => (s.selectedFieldId ? s.perFieldTransformOverrides[s.selectedFieldId] ?? null : null));
+  const selectedFieldCornerOverlay = useWaferStore((s) => (s.selectedFieldId ? s.perFieldCornerOverlays[s.selectedFieldId] ?? null : null));
+  const resetModelState = useWaferStore((s) => s.resetModelState);
+  const layout = useWaferLayout(canvasSize, layoutConfig);
+  const isInteractive = variant === 'interactive';
+
+  const clipId = `wafer-clip-${variant}`;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const { width, height } = el.getBoundingClientRect();
+      const size = Math.floor(Math.min(width, height));
+      if (size > 0) setCanvasSize(size);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedFieldId) {
+      setIsFieldPanelAuto(true);
+      setFieldPanelPos(null);
+    } else {
+      setIsFieldPanelAuto(true);
+    }
+  }, [selectedFieldId]);
+
+  useEffect(() => {
+    if (!isInteractive || !selectedFieldId || !isFieldPanelAuto) return;
+    const containerEl = containerRef.current;
+    if (!containerEl) return;
+
+    const updateAutoPosition = () => {
+      const fieldEl = containerEl.querySelector(`[data-field-id="${selectedFieldId}"]`) as SVGGraphicsElement | null;
+      const panelEl = containerEl.querySelector('[data-field-edit-panel="true"]') as HTMLDivElement | null;
+      const containerRect = containerEl.getBoundingClientRect();
+      const panelHeight = panelEl?.getBoundingClientRect().height ?? FLOATING_PANEL_FALLBACK_HEIGHT;
+
+      if (!fieldEl) {
+        setFieldPanelPos({
+          x: Math.max(FLOATING_PANEL_MARGIN, containerRect.width - FLOATING_PANEL_WIDTH - FLOATING_PANEL_MARGIN),
+          y: FLOATING_PANEL_TOP,
+        });
+        return;
+      }
+
+      const fieldRect = fieldEl.getBoundingClientRect();
+      const fieldCenterX = fieldRect.left - containerRect.left + fieldRect.width / 2;
+      const fieldCenterY = fieldRect.top - containerRect.top + fieldRect.height / 2;
+      const zoomTransform = svgRef.current ? d3.zoomTransform(svgRef.current) : d3.zoomIdentity;
+      const waferCenterX = zoomTransform.applyX(layout.centerPx);
+      const waferCenterY = zoomTransform.applyY(layout.centerPx);
+      const placeLeft = fieldCenterX >= waferCenterX;
+      const placeTop = fieldCenterY <= waferCenterY;
+      const nextX = placeLeft
+        ? FLOATING_PANEL_MARGIN
+        : Math.max(FLOATING_PANEL_MARGIN, containerRect.width - FLOATING_PANEL_WIDTH - FLOATING_PANEL_MARGIN);
+      const nextY = placeTop
+        ? FLOATING_PANEL_TOP
+        : Math.max(FLOATING_PANEL_TOP, containerRect.height - panelHeight - FLOATING_PANEL_MARGIN);
+
+      setFieldPanelPos({ x: nextX, y: nextY });
+    };
+
+    const frame = requestAnimationFrame(updateAutoPosition);
+    return () => cancelAnimationFrame(frame);
+  }, [
+    isFieldPanelAuto,
+    isInteractive,
+    selectedFieldId,
+    selectedFieldTransform,
+    selectedFieldCornerOverlay,
+    waferDistortion,
+    fieldDistortion,
+    layoutConfig,
+    granularity,
+    zoomScale,
+  ]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const drag = dragPanelRef.current;
+      const el = containerRef.current;
+      if (!drag || !el) return;
+      const rect = el.getBoundingClientRect();
+      const nextX = Math.min(
+        Math.max(FLOATING_PANEL_MARGIN, event.clientX - rect.left - drag.offsetX),
+        Math.max(FLOATING_PANEL_MARGIN, rect.width - FLOATING_PANEL_WIDTH - FLOATING_PANEL_MARGIN),
+      );
+      const nextY = Math.min(
+        Math.max(48, event.clientY - rect.top - drag.offsetY),
+        Math.max(48, rect.height - 72),
+      );
+      setFieldPanelPos({ x: nextX, y: nextY });
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      if (dragPanelRef.current?.pointerId === event.pointerId) {
+        dragPanelRef.current = null;
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!svgRef.current || !zoomGroupRef.current) return;
+    const svg = d3.select(svgRef.current);
+    const zoomGroup = d3.select(zoomGroupRef.current);
+
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.5, 40])
+      .filter((event) => {
+        const target = event.target as Element | null;
+        if (target?.closest?.('[data-no-zoom="true"], [data-editor-handle="true"]')) return false;
+        if (event.type === 'wheel') return true;
+        return !event.button;
+      })
+      .on('zoom', (event) => {
+        zoomGroup.attr('transform', event.transform.toString());
+        setZoomScale(event.transform.k);
+      });
+
+    zoomBehaviorRef.current = zoom;
+    svg.call(zoom);
+    svg.on('dblclick.zoom', () => {
+      svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+    });
+
+    return () => {
+      svg.on('.zoom', null);
+    };
+  }, [canvasSize, variant]);
+
+  const accentColor = isInteractive ? '#355d80' : '#5e7185';
+  const accentBg = isInteractive ? '#eef4f7' : '#edf2f5';
+  const accentBorder = isInteractive ? 'rgba(157,180,198,0.42)' : 'rgba(170,186,199,0.42)';
+
+  const handleResetView = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(220)
+      .call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+  };
+
+  const handleZoomBy = (factor: number) => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(180)
+      .call(zoomBehaviorRef.current.scaleBy, factor);
+  };
+
+  const handleResetModel = () => {
+    resetModelState();
+  };
+
+  const handleSvgPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!isInteractive) return;
+    if (event.target !== event.currentTarget) return;
+    selectField(null);
+  };
+
+  const handleFieldPanelHeaderPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const panelEl = event.currentTarget.closest('[data-field-edit-panel="true"]') as HTMLDivElement | null;
+    if (!panelEl) return;
+    const rect = panelEl.getBoundingClientRect();
+    setIsFieldPanelAuto(false);
+    dragPanelRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    };
+  };
+
+  const handleResetFieldPanelPosition = () => {
+    setIsFieldPanelAuto(true);
+  };
+
+  const toolButtonStyle: React.CSSProperties = {
+    border: '1px solid rgba(166,184,198,0.28)',
+    background: '#fdfefe',
+    color: '#284257',
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 1px 2px rgba(72,96,120,0.05)',
+    transition: 'transform 0.06s ease, box-shadow 0.12s ease, background-color 0.12s ease',
+  };
+
+  const handleToolButtonPress = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.currentTarget.style.transform = 'translateY(1px) scale(0.985)';
+    event.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(72,96,120,0.12)';
+    event.currentTarget.style.backgroundColor = '#f1f6fa';
+  };
+
+  const handleToolButtonRelease = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.currentTarget.style.transform = 'translateY(0) scale(1)';
+    event.currentTarget.style.boxShadow = '0 1px 2px rgba(72,96,120,0.05)';
+    event.currentTarget.style.backgroundColor = '#fdfefe';
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0, height: '100%' }}>
+      <div style={{ position: 'relative', height: 28, flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: accentColor,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              background: accentBg,
+              border: `1px solid ${accentBorder}`,
+              borderRadius: 5,
+              padding: '2px 10px',
+            }}
+          >
+            {title}
+          </div>
+        </div>
+      </div>
+
+      <div
+        ref={containerRef}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          position: 'relative',
+          borderRadius: 16,
+          overflow: 'hidden',
+          border: '1px solid rgba(166,185,201,0.42)',
+          background: '#e3ebf1',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.82), 0 12px 24px rgba(64,86,110,0.06)',
+        }}
+      >
+        <svg
+          ref={svgRef}
+          onPointerDown={handleSvgPointerDown}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            display: 'block',
+            cursor: 'grab',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
+          viewBox={`0 0 ${canvasSize} ${canvasSize}`}
+        >
+          <g ref={zoomGroupRef}>
+            <WaferBoundary layout={layout} clipId={clipId} />
+            {granularity === 'die' && (
+              <DieGrid layout={layout} variant={variant} clipId={clipId} zoomScale={zoomScale} />
+            )}
+            <FieldGrid layout={layout} variant={variant} clipId={clipId} zoomScale={zoomScale} />
+            {variant === 'reference' && granularity === 'die' && (
+              <DisplacementVectorLayer layout={layout} clipId={clipId} />
+            )}
+            {variant === 'reference' && granularity === 'field' && (
+              <FieldVectorLayer layout={layout} clipId={clipId} zoomScale={zoomScale} />
+            )}
+          </g>
+        </svg>
+
+        {isInteractive && (
+          <>
+            <div
+              style={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                zIndex: 3,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 7px',
+                borderRadius: 9,
+                background: 'rgba(247,250,252,0.86)',
+                border: '1px solid rgba(166,184,198,0.24)',
+                boxShadow: '0 4px 10px rgba(72,96,120,0.04)',
+              }}
+            >
+              <button
+                onClick={() => handleZoomBy(0.8)}
+                onPointerDown={handleToolButtonPress}
+                onPointerUp={handleToolButtonRelease}
+                onPointerLeave={handleToolButtonRelease}
+                style={{
+                  ...toolButtonStyle,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 7,
+                  fontSize: 13,
+                  lineHeight: 1,
+                }}
+              >
+                -
+              </button>
+              <button
+                onClick={() => handleZoomBy(1.25)}
+                onPointerDown={handleToolButtonPress}
+                onPointerUp={handleToolButtonRelease}
+                onPointerLeave={handleToolButtonRelease}
+                style={{
+                  ...toolButtonStyle,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 7,
+                  fontSize: 13,
+                  lineHeight: 1,
+                }}
+              >
+                +
+              </button>
+              <button
+                onClick={handleResetModel}
+                onPointerDown={handleToolButtonPress}
+                onPointerUp={handleToolButtonRelease}
+                onPointerLeave={handleToolButtonRelease}
+                style={{
+                  ...toolButtonStyle,
+                  height: 24,
+                  padding: '0 8px',
+                  borderRadius: 7,
+                  fontSize: 10,
+                }}
+              >
+                Reset
+              </button>
+              <button
+                onClick={handleResetView}
+                onPointerDown={handleToolButtonPress}
+                onPointerUp={handleToolButtonRelease}
+                onPointerLeave={handleToolButtonRelease}
+                style={{
+                  ...toolButtonStyle,
+                  height: 24,
+                  padding: '0 8px',
+                  borderRadius: 7,
+                  fontSize: 10,
+                }}
+              >
+                Relocate
+              </button>
+            </div>
+
+            {selectedFieldId && (
+              <div
+                data-no-zoom="true"
+                style={{
+                  position: 'absolute',
+                  top: fieldPanelPos?.y ?? FLOATING_PANEL_TOP,
+                  left: fieldPanelPos?.x ?? FLOATING_PANEL_MARGIN,
+                  zIndex: 4,
+                  maxHeight: 'calc(100% - 68px)',
+                  overflowY: 'auto',
+                }}
+              >
+                <FieldEditPanel
+                  floating
+                  onHeaderPointerDown={handleFieldPanelHeaderPointerDown}
+                  onResetPosition={handleResetFieldPanelPosition}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {!isInteractive && <StatsSidebar />}
+        {!isInteractive && <MiniWaferMap />}
+      </div>
+    </div>
+  );
+};
