@@ -77,6 +77,102 @@ const ZERO_FIELD_TRANSFORM: FieldTransformOverride = {
   Sy: 0,
 };
 
+const SHOWCASE_WAFER: WaferDistortionParams = {
+  Tx: 110,
+  Ty: -90,
+  theta: 1.4,
+  M: 1.8,
+  Sx: -1.2,
+  Sy: 1.5,
+};
+
+const SHOWCASE_FIELD: FieldDistortionParams = {
+  FTx: -42,
+  FTy: 36,
+  Ftheta: -0.8,
+  FM: 0.9,
+  FSx: 1.2,
+  FSy: -0.7,
+};
+
+const SHOWCASE_EPE: EPEConfig = {
+  mode: 'systematic',
+  magnitude: 18,
+  systematicAngle: 28,
+  seed: 42,
+};
+
+const SHOWCASE_VIEW: Partial<ViewState> = {
+  granularity: 'die',
+  dataSource: 'parameters',
+  arrowScaleFactor: 52000,
+  showDisplacementVectors: true,
+  showFieldBoundaries: true,
+  showDieBoundaries: true,
+  colorMapRange: [0, 320],
+};
+
+function createShowcaseFieldTransforms(): Record<string, FieldTransformOverride> {
+  const entries: Array<[string, FieldTransformOverride]> = [];
+
+  for (let row = -2; row <= 2; row += 1) {
+    for (let col = -2; col <= 2; col += 1) {
+      const radius = Math.abs(col) + Math.abs(row);
+      const falloff = Math.max(0.24, 1 - radius * 0.18);
+      const waveA = Math.sin((col + 2.4) * 0.92 + row * 0.68);
+      const waveB = Math.cos(row * 1.08 - col * 0.57);
+      entries.push([
+        `f_${col}_${row}`,
+        {
+          Tx: Math.round((36 * waveA + col * 22) * falloff),
+          Ty: Math.round((31 * waveB + row * 20) * falloff),
+          theta: Math.round((waveB * 1.02 - col * 0.18 + row * 0.11) * falloff * 100) / 100,
+          M: Math.round((waveA * 1.18 + waveB * 0.34) * falloff * 100) / 100,
+          Sx: Math.round((col * 0.82 + waveA * 0.94) * falloff * 100) / 100,
+          Sy: Math.round((row * -0.76 + waveB * 0.88) * falloff * 100) / 100,
+        },
+      ]);
+    }
+  }
+
+  return Object.fromEntries(entries);
+}
+
+function createShowcaseFieldCorners(): Record<string, EntityOverlay> {
+  const entries: Array<[string, EntityOverlay]> = [];
+
+  for (let row = -2; row <= 2; row += 1) {
+    for (let col = -2; col <= 2; col += 1) {
+      const radius = Math.abs(col) + Math.abs(row);
+      const falloff = Math.max(0.22, 1 - radius * 0.16);
+      const bendX = Math.sin((col + 1.2) * 1.08 + row * 0.62);
+      const bendY = Math.cos((row - 0.4) * 0.95 - col * 0.71);
+      const ampX = Math.round((126 + 112 * falloff) * bendX);
+      const ampY = Math.round((118 + 104 * falloff) * bendY);
+
+      entries.push([
+        `f_${col}_${row}`,
+        {
+          cornerDx: [
+            ampX,
+            Math.round(ampX * 0.34 - ampY * 0.18),
+            -ampX,
+            Math.round(-ampX * 0.28 + ampY * 0.24),
+          ],
+          cornerDy: [
+            ampY,
+            Math.round(-ampY * 0.26 + ampX * 0.22),
+            -ampY,
+            Math.round(ampY * 0.3 - ampX * 0.18),
+          ],
+        },
+      ]);
+    }
+  }
+
+  return Object.fromEntries(entries);
+}
+
 function getResultQuad(result: DistortedPosition) {
   if (result.distortedCorners) return result.distortedCorners;
   if (result.designCorners && result.cornerDx && result.cornerDy) {
@@ -193,6 +289,7 @@ interface WaferState {
   setFieldCornerOverlay: (id: string, overlay: EntityOverlay) => void;
   resetFieldCornerOverlay: (id: string) => void;
   resetModelState: () => void;
+  applyVectorMapShowcase: () => void;
   recomputeLayout: () => void;
   recomputeDistortions: () => void;
 }
@@ -340,15 +437,50 @@ export const useWaferStore = create<WaferState>()(
 
     resetModelState() {
       set((s) => {
+        s.layoutConfig = { ...DEFAULT_LAYOUT };
         s.waferDistortion = { ...DEFAULT_WAFER };
         s.fieldDistortion = { ...DEFAULT_FIELD };
         s.epeConfig = { ...DEFAULT_EPE };
+        s.viewState = { ...DEFAULT_VIEW };
         s.importedData = null;
-        s.viewState.dataSource = 'parameters';
         s.perEntityOverlays = {};
         s.selectedFieldId = null;
         s.perFieldTransformOverrides = {};
         s.perFieldCornerOverlays = {};
+      });
+      get().recomputeLayout();
+    },
+
+    applyVectorMapShowcase() {
+      const layoutConfig = { ...DEFAULT_LAYOUT };
+      const fields = generateFieldGrid(layoutConfig);
+      const dies = generateDieGrid(fields, layoutConfig);
+      const fieldIdSet = new Set(fields.map((field) => field.id));
+      const showcaseFieldTransforms = createShowcaseFieldTransforms();
+      const showcaseFieldCorners = createShowcaseFieldCorners();
+      const transformOverrides = Object.fromEntries(
+        Object.entries(showcaseFieldTransforms).filter(([fieldId]) => fieldIdSet.has(fieldId)),
+      ) as Record<string, FieldTransformOverride>;
+      const cornerOverrides = Object.fromEntries(
+        Object.entries(showcaseFieldCorners).filter(([fieldId]) => fieldIdSet.has(fieldId)),
+      ) as Record<string, EntityOverlay>;
+
+      set((s) => {
+        s.layoutConfig = layoutConfig;
+        s.fields = fields;
+        s.dies = dies;
+        s.waferDistortion = { ...SHOWCASE_WAFER };
+        s.fieldDistortion = { ...SHOWCASE_FIELD };
+        s.epeConfig = { ...SHOWCASE_EPE };
+        s.viewState = {
+          ...DEFAULT_VIEW,
+          ...SHOWCASE_VIEW,
+        };
+        s.importedData = null;
+        s.perEntityOverlays = {};
+        s.selectedFieldId = fieldIdSet.has('f_0_0') ? 'f_0_0' : null;
+        s.perFieldTransformOverrides = transformOverrides;
+        s.perFieldCornerOverlays = cornerOverrides;
       });
       get().recomputeDistortions();
     },
