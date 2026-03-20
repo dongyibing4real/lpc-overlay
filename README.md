@@ -6,6 +6,14 @@ A browser-based visual sandbox for generating, inspecting, editing, and exportin
 
 > This project is a simulation and mock-data tool. It is not a fab-qualified metrology or process control system.
 
+## At a Glance
+
+- Side-by-side `Actual Map` and `Distortion Vector Map` views
+- Wafer-level, field-level, and local per-field editing in one workspace
+- Built-in `Showcase` preset for demo-ready screenshots and presentations
+- `Die` / `Field` granularity switching for different analysis modes
+- Export to `CSV` and `JSON` with `mm` / `nm` unit selection
+
 ## Screenshots
 
 ### Showcase Demo
@@ -30,6 +38,14 @@ Overlay analysis workflows often need realistic but controllable data:
 - Process exploration often needs both wafer-level trends and field-local exceptions in the same session.
 
 This app focuses on that gap: fast visual iteration with enough geometry awareness to make the generated behavior feel useful.
+
+## Typical Use Cases
+
+- Front-end prototyping before live metrology data or backend APIs are ready
+- Distortion algorithm experiments with repeatable synthetic patterns
+- Product demos that need realistic vector maps and exportable mock data
+- Stakeholder reviews where local field edits need to be visual and interactive
+- Internal tooling explorations around overlay behavior and inspection workflows
 
 ## Feature Highlights
 
@@ -63,6 +79,14 @@ It applies:
 - A stronger `die`-mode vector presentation so the right-side map reads clearly at a glance.
 
 This gives you a good "default story" for the product without having to manually tune dozens of controls before every demo.
+
+## Quick Demo
+
+1. Start the app with `npm run dev`
+2. Click `Load Complex Demo`
+3. Inspect the left-side warped field patch on `Actual Map`
+4. Compare the right-side vector density, color distribution, and direction flow
+5. Switch between `Die` and `Field` to change how the same distortion pattern is presented
 
 ## What You Can Model
 

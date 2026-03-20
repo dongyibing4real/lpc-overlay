@@ -180,7 +180,6 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
   }, [canvasSize, variant]);
 
   const accentColor = isInteractive ? '#355d80' : '#5e7185';
-  const accentBg = isInteractive ? '#eef4f7' : '#edf2f5';
   const accentBorder = isInteractive ? 'rgba(157,180,198,0.42)' : 'rgba(170,186,199,0.42)';
 
   const handleResetView = () => {
@@ -253,17 +252,32 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <div
             style={{
-              fontSize: 10,
-              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              minHeight: 24,
+              fontSize: 10.5,
+              fontWeight: 800,
               color: accentColor,
               textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              background: accentBg,
+              letterSpacing: '0.12em',
+              background: 'rgba(250,252,254,0.96)',
               border: `1px solid ${accentBorder}`,
-              borderRadius: 5,
-              padding: '2px 10px',
+              borderRadius: 9,
+              padding: '4px 14px 4px 11px',
+              boxShadow: '0 4px 10px rgba(72,96,120,0.05)',
             }}
           >
+            <div
+              style={{
+                width: 3,
+                height: 13,
+                borderRadius: 99,
+                background: accentColor,
+                opacity: 0.88,
+                flexShrink: 0,
+              }}
+            />
             {title}
           </div>
         </div>
@@ -277,9 +291,9 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
           position: 'relative',
           borderRadius: 16,
           overflow: 'hidden',
-          border: '1px solid rgba(166,185,201,0.42)',
-          background: '#e3ebf1',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.82), 0 12px 24px rgba(64,86,110,0.06)',
+          border: '1px solid rgba(173,189,203,0.34)',
+          background: '#fbfdff',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.92), 0 12px 24px rgba(64,86,110,0.05)',
         }}
       >
         <svg
