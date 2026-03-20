@@ -181,6 +181,7 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
 
   const accentColor = isInteractive ? '#355d80' : '#5e7185';
   const accentBorder = isInteractive ? 'rgba(157,180,198,0.42)' : 'rgba(170,186,199,0.42)';
+  const toolbarBackground = isInteractive ? 'rgba(247,250,252,0.86)' : 'rgba(247,250,252,0.92)';
 
   const handleResetView = () => {
     if (!svgRef.current || !zoomBehaviorRef.current) return;
@@ -200,6 +201,13 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
 
   const handleResetModel = () => {
     resetModelState();
+  };
+
+  const handleToolbarReset = () => {
+    if (isInteractive) {
+      handleResetModel();
+    }
+    handleResetView();
   };
 
   const handleSvgPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -326,88 +334,89 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
           </g>
         </svg>
 
+        <div
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: '50%',
+            zIndex: 3,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 7px',
+            borderRadius: 9,
+            background: toolbarBackground,
+            border: '1px solid rgba(166,184,198,0.24)',
+            boxShadow: '0 4px 10px rgba(72,96,120,0.04)',
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <button
+            onClick={() => handleZoomBy(0.8)}
+            onPointerDown={handleToolButtonPress}
+            onPointerUp={handleToolButtonRelease}
+            onPointerLeave={handleToolButtonRelease}
+            style={{
+              ...toolButtonStyle,
+              width: 24,
+              height: 24,
+              borderRadius: 7,
+              fontSize: 13,
+              lineHeight: 1,
+            }}
+          >
+            -
+          </button>
+          <button
+            onClick={() => handleZoomBy(1.25)}
+            onPointerDown={handleToolButtonPress}
+            onPointerUp={handleToolButtonRelease}
+            onPointerLeave={handleToolButtonRelease}
+            style={{
+              ...toolButtonStyle,
+              width: 24,
+              height: 24,
+              borderRadius: 7,
+              fontSize: 13,
+              lineHeight: 1,
+            }}
+          >
+            +
+          </button>
+          <button
+            onClick={handleToolbarReset}
+            onPointerDown={handleToolButtonPress}
+            onPointerUp={handleToolButtonRelease}
+            onPointerLeave={handleToolButtonRelease}
+            style={{
+              ...toolButtonStyle,
+              height: 24,
+              padding: '0 8px',
+              borderRadius: 7,
+              fontSize: 10,
+            }}
+          >
+            Reset
+          </button>
+          <button
+            onClick={handleResetView}
+            onPointerDown={handleToolButtonPress}
+            onPointerUp={handleToolButtonRelease}
+            onPointerLeave={handleToolButtonRelease}
+            style={{
+              ...toolButtonStyle,
+              height: 24,
+              padding: '0 8px',
+              borderRadius: 7,
+              fontSize: 10,
+            }}
+          >
+            Relocate
+          </button>
+        </div>
+
         {isInteractive && (
           <>
-            <div
-              style={{
-                position: 'absolute',
-                top: 10,
-                left: 10,
-                zIndex: 3,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 7px',
-                borderRadius: 9,
-                background: 'rgba(247,250,252,0.86)',
-                border: '1px solid rgba(166,184,198,0.24)',
-                boxShadow: '0 4px 10px rgba(72,96,120,0.04)',
-              }}
-            >
-              <button
-                onClick={() => handleZoomBy(0.8)}
-                onPointerDown={handleToolButtonPress}
-                onPointerUp={handleToolButtonRelease}
-                onPointerLeave={handleToolButtonRelease}
-                style={{
-                  ...toolButtonStyle,
-                  width: 24,
-                  height: 24,
-                  borderRadius: 7,
-                  fontSize: 13,
-                  lineHeight: 1,
-                }}
-              >
-                -
-              </button>
-              <button
-                onClick={() => handleZoomBy(1.25)}
-                onPointerDown={handleToolButtonPress}
-                onPointerUp={handleToolButtonRelease}
-                onPointerLeave={handleToolButtonRelease}
-                style={{
-                  ...toolButtonStyle,
-                  width: 24,
-                  height: 24,
-                  borderRadius: 7,
-                  fontSize: 13,
-                  lineHeight: 1,
-                }}
-              >
-                +
-              </button>
-              <button
-                onClick={handleResetModel}
-                onPointerDown={handleToolButtonPress}
-                onPointerUp={handleToolButtonRelease}
-                onPointerLeave={handleToolButtonRelease}
-                style={{
-                  ...toolButtonStyle,
-                  height: 24,
-                  padding: '0 8px',
-                  borderRadius: 7,
-                  fontSize: 10,
-                }}
-              >
-                Reset
-              </button>
-              <button
-                onClick={handleResetView}
-                onPointerDown={handleToolButtonPress}
-                onPointerUp={handleToolButtonRelease}
-                onPointerLeave={handleToolButtonRelease}
-                style={{
-                  ...toolButtonStyle,
-                  height: 24,
-                  padding: '0 8px',
-                  borderRadius: 7,
-                  fontSize: 10,
-                }}
-              >
-                Relocate
-              </button>
-            </div>
-
             {selectedFieldId && (
               <div
                 data-no-zoom="true"

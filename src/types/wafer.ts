@@ -119,3 +119,16 @@ export interface OverlayStats {
   p99Magnitude: number;
   count: number;
 }
+
+export interface WaferSceneSnapshot {
+  layoutConfig: WaferLayoutConfig;
+  waferDistortion: WaferDistortionParams;
+  fieldDistortion: FieldDistortionParams;
+  epeConfig: EPEConfig;
+  viewState: ViewState;
+  importedData: OverlayRecord[] | null;
+  perEntityOverlays: Record<string, EntityOverlay>;
+  selectedFieldId: string | null;
+  perFieldTransformOverrides: Record<string, FieldTransformOverride>;
+  perFieldCornerOverlays: Record<string, EntityOverlay>;
+}

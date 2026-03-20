@@ -2,6 +2,7 @@ import React from 'react';
 import { WaferMapCanvas } from './components/WaferMap/WaferMapCanvas';
 import { ControlPanel } from './components/ControlPanel/ControlPanel';
 import { DisplayPanel } from './components/DisplayPanel';
+import { AgentPanel } from './components/AgentPanel';
 import { useWaferStore } from './store/useWaferStore';
 
 const ChipIcon: React.FC = () => (
@@ -180,6 +181,8 @@ const App: React.FC = () => {
           <DisplayPanel />
         </aside>
       </div>
+
+      <AgentPanel />
     </div>
   );
 };

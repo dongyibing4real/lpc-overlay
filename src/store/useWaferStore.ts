@@ -12,6 +12,7 @@ import type {
   DieCell,
   EntityOverlay,
   FieldTransformOverride,
+  WaferSceneSnapshot,
 } from '../types/wafer';
 import { generateFieldGrid, generateDieGrid } from '../utils/waferGeometry';
 import {
@@ -111,6 +112,21 @@ const SHOWCASE_VIEW: Partial<ViewState> = {
   showDieBoundaries: true,
   colorMapRange: [0, 320],
 };
+
+function createDefaultSceneSnapshot(): WaferSceneSnapshot {
+  return structuredClone({
+    layoutConfig: DEFAULT_LAYOUT,
+    waferDistortion: DEFAULT_WAFER,
+    fieldDistortion: DEFAULT_FIELD,
+    epeConfig: DEFAULT_EPE,
+    viewState: DEFAULT_VIEW,
+    importedData: null,
+    perEntityOverlays: {},
+    selectedFieldId: null,
+    perFieldTransformOverrides: {},
+    perFieldCornerOverlays: {},
+  });
+}
 
 function createShowcaseFieldTransforms(): Record<string, FieldTransformOverride> {
   const entries: Array<[string, FieldTransformOverride]> = [];
@@ -290,6 +306,9 @@ interface WaferState {
   resetFieldCornerOverlay: (id: string) => void;
   resetModelState: () => void;
   applyVectorMapShowcase: () => void;
+  getDefaultSceneSnapshot: () => WaferSceneSnapshot;
+  getSceneSnapshot: () => WaferSceneSnapshot;
+  replaceSceneSnapshot: (snapshot: WaferSceneSnapshot) => void;
   recomputeLayout: () => void;
   recomputeDistortions: () => void;
 }
@@ -436,19 +455,7 @@ export const useWaferStore = create<WaferState>()(
     },
 
     resetModelState() {
-      set((s) => {
-        s.layoutConfig = { ...DEFAULT_LAYOUT };
-        s.waferDistortion = { ...DEFAULT_WAFER };
-        s.fieldDistortion = { ...DEFAULT_FIELD };
-        s.epeConfig = { ...DEFAULT_EPE };
-        s.viewState = { ...DEFAULT_VIEW };
-        s.importedData = null;
-        s.perEntityOverlays = {};
-        s.selectedFieldId = null;
-        s.perFieldTransformOverrides = {};
-        s.perFieldCornerOverlays = {};
-      });
-      get().recomputeLayout();
+      get().replaceSceneSnapshot(createDefaultSceneSnapshot());
     },
 
     applyVectorMapShowcase() {
@@ -482,6 +489,64 @@ export const useWaferStore = create<WaferState>()(
         s.perFieldTransformOverrides = transformOverrides;
         s.perFieldCornerOverlays = cornerOverrides;
       });
+      get().recomputeDistortions();
+    },
+
+    getDefaultSceneSnapshot() {
+      return createDefaultSceneSnapshot();
+    },
+
+    getSceneSnapshot() {
+      const {
+        layoutConfig,
+        waferDistortion,
+        fieldDistortion,
+        epeConfig,
+        viewState,
+        importedData,
+        perEntityOverlays,
+        selectedFieldId,
+        perFieldTransformOverrides,
+        perFieldCornerOverlays,
+      } = get();
+
+      return structuredClone({
+        layoutConfig,
+        waferDistortion,
+        fieldDistortion,
+        epeConfig,
+        viewState,
+        importedData,
+        perEntityOverlays,
+        selectedFieldId,
+        perFieldTransformOverrides,
+        perFieldCornerOverlays,
+      });
+    },
+
+    replaceSceneSnapshot(snapshot) {
+      const layoutConfig = structuredClone(snapshot.layoutConfig);
+      const fields = generateFieldGrid(layoutConfig);
+      const dies = generateDieGrid(fields, layoutConfig);
+      const fieldIdSet = new Set(fields.map((field) => field.id));
+
+      set((s) => {
+        s.layoutConfig = layoutConfig;
+        s.fields = fields;
+        s.dies = dies;
+        s.waferDistortion = structuredClone(snapshot.waferDistortion);
+        s.fieldDistortion = structuredClone(snapshot.fieldDistortion);
+        s.epeConfig = structuredClone(snapshot.epeConfig);
+        s.viewState = structuredClone(snapshot.viewState);
+        s.importedData = structuredClone(snapshot.importedData);
+        s.perEntityOverlays = structuredClone(snapshot.perEntityOverlays);
+        s.selectedFieldId = snapshot.selectedFieldId && fieldIdSet.has(snapshot.selectedFieldId)
+          ? snapshot.selectedFieldId
+          : null;
+        s.perFieldTransformOverrides = structuredClone(snapshot.perFieldTransformOverrides);
+        s.perFieldCornerOverlays = structuredClone(snapshot.perFieldCornerOverlays);
+      });
+
       get().recomputeDistortions();
     },
 
