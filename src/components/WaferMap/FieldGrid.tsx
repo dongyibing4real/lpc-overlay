@@ -7,7 +7,7 @@ import {
   computeRenderedFieldFrame,
 } from '../../utils/renderCorners';
 import { FIELD_EDIT_RENDER_SCALE } from '../../utils/fieldEditGeometry';
-import type { EntityOverlay, FieldTransformOverride } from '../../types/wafer';
+import type { CornerOverlay, FieldTransformOverride } from '../../types/wafer';
 
 interface Props {
   layout: WaferLayoutHook;
@@ -37,8 +37,10 @@ type HandleDragState = {
   screenCenter?: Vec2;
   accumulatedTheta?: number;
   cornerIndex?: number;
-  startOverlay?: EntityOverlay;
+  startOverlay?: CornerOverlay;
 };
+
+const GEOMETRY_RENDER_SCALE = 1;
 
 function add(a: Vec2, b: Vec2): Vec2 {
   return [a[0] + b[0], a[1] + b[1]];
@@ -196,6 +198,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
   const dragStateRef = useRef<HandleDragState | null>(null);
 
   const isInteractive = variant === 'interactive';
+  const geometryRenderScale = isInteractive ? FIELD_EDIT_RENDER_SCALE : GEOMETRY_RENDER_SCALE;
   const isDieMode = granularity === 'die';
   const usePolygonDetail = isInteractive;
   const stroke = showFieldBoundaries
@@ -219,7 +222,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
           waferDistortion,
           fieldDistortion,
           layout.toPixel,
-          FIELD_EDIT_RENDER_SCALE,
+          geometryRenderScale,
         )
         : null;
       const transformedQuad = baseFrame
@@ -229,7 +232,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
           halfHUm,
           perFieldTransformOverrides[field.id],
           layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
+          geometryRenderScale,
         )
         : null;
       const quad = transformedQuad
@@ -237,7 +240,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
           transformedQuad,
           perFieldCornerOverlays[field.id],
           layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
+          geometryRenderScale,
         )
         : null;
       const points = quad ? quad.map((c) => `${c[0]},${c[1]}`).join(' ') : null;
@@ -282,6 +285,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
     fieldDistortion,
     perFieldTransformOverrides,
     perFieldCornerOverlays,
+    geometryRenderScale,
     isInteractive,
     selectedFieldId,
   ]);
@@ -372,8 +376,8 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
       startAngle: 0,
       cornerIndex,
       startOverlay: {
-        cornerDx: [...currentOverlay.cornerDx] as EntityOverlay['cornerDx'],
-        cornerDy: [...currentOverlay.cornerDy] as EntityOverlay['cornerDy'],
+        cornerDx: [...currentOverlay.cornerDx] as CornerOverlay['cornerDx'],
+        cornerDy: [...currentOverlay.cornerDy] as CornerOverlay['cornerDy'],
       },
     };
   }, [perFieldCornerOverlays, perFieldTransformOverrides]);
@@ -390,8 +394,8 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
 
       if (drag.mode === 'corner' && drag.cornerIndex !== undefined && drag.startOverlay) {
         const nextOverlay = {
-          cornerDx: [...drag.startOverlay.cornerDx] as EntityOverlay['cornerDx'],
-          cornerDy: [...drag.startOverlay.cornerDy] as EntityOverlay['cornerDy'],
+          cornerDx: [...drag.startOverlay.cornerDx] as CornerOverlay['cornerDx'],
+          cornerDy: [...drag.startOverlay.cornerDy] as CornerOverlay['cornerDy'],
         };
         nextOverlay.cornerDx[drag.cornerIndex] += deltaPx[0] * pxToNm;
         nextOverlay.cornerDy[drag.cornerIndex] += -deltaPx[1] * pxToNm;

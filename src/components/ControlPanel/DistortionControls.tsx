@@ -84,7 +84,7 @@ export const DistortionControls: React.FC = memo(() => {
   const setWaferDistortion = useWaferStore((s) => s.setWaferDistortion);
   const setFieldDistortion = useWaferStore((s) => s.setFieldDistortion);
   const setEPEConfig = useWaferStore((s) => s.setEPEConfig);
-  const clearEntityOverlays = useWaferStore((s) => s.clearEntityOverlays);
+  const clearCornerOverlays = useWaferStore((s) => s.clearCornerOverlays);
 
   const [waferDraft, setWaferDraft] = useState(waferDistortion);
   const [fieldDraft, setFieldDraft] = useState(fieldDistortion);
@@ -117,15 +117,15 @@ export const DistortionControls: React.FC = memo(() => {
     const reset = { Tx: 0, Ty: 0, theta: 0, M: 0, Sx: 0, Sy: 0 };
     setWaferDraft(reset);
     setWaferDistortion(reset);
-    clearEntityOverlays();
-  }, [setWaferDistortion, clearEntityOverlays]);
+    clearCornerOverlays();
+  }, [setWaferDistortion, clearCornerOverlays]);
 
   const resetField = useCallback(() => {
     const reset = { FTx: 0, FTy: 0, Ftheta: 0, FM: 0, FSx: 0, FSy: 0 };
     setFieldDraft(reset);
     setFieldDistortion(reset);
-    clearEntityOverlays();
-  }, [setFieldDistortion, clearEntityOverlays]);
+    clearCornerOverlays();
+  }, [setFieldDistortion, clearCornerOverlays]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

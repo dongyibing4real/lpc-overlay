@@ -1,17 +1,16 @@
 import type {
-  EntityOverlay,
+  CornerOverlay,
   FieldTransformOverride,
   FieldDistortionParams,
   Point,
   WaferDistortionParams,
 } from '../types/wafer';
+import { applyIndependentTransformUm } from './overlayTransform';
 
 type Vec2 = [number, number];
 type CornerTuple<T> = [T, T, T, T];
 
 const NM_TO_UM = 1e-3;
-const PPM = 1e-6;
-const URAD_TO_RAD = 1e-6;
 
 function computeExaggeratedDisplacementUm(
   pos: Point,
@@ -22,19 +21,20 @@ function computeExaggeratedDisplacementUm(
   asymScaleYPpm: number,
   renderScale: number,
 ): Point {
-  const theta = rotationUrad * URAD_TO_RAD * renderScale;
-  const cosTheta = Math.cos(theta);
-  const sinTheta = Math.sin(theta);
+  const transformed = applyIndependentTransformUm(pos, {
+    translationNm: {
+      x: translationNm.x * renderScale,
+      y: translationNm.y * renderScale,
+    },
+    rotationUrad: rotationUrad * renderScale,
+    magnificationPpm: magnificationPpm * renderScale,
+    asymScaleXPpm: asymScaleXPpm * renderScale,
+    asymScaleYPpm: asymScaleYPpm * renderScale,
+  });
 
   return {
-    x: translationNm.x * NM_TO_UM * renderScale
-      + (magnificationPpm + asymScaleXPpm) * PPM * pos.x * renderScale
-      + (cosTheta - 1) * pos.x
-      - sinTheta * pos.y,
-    y: translationNm.y * NM_TO_UM * renderScale
-      + (magnificationPpm + asymScaleYPpm) * PPM * pos.y * renderScale
-      + sinTheta * pos.x
-      + (cosTheta - 1) * pos.y,
+    x: transformed.x - pos.x,
+    y: transformed.y - pos.y,
   };
 }
 
@@ -135,22 +135,13 @@ function transformLocalPoint(
   asymScaleYPpm: number,
   parameterScale: number,
 ): Point {
-  const theta = rotationUrad * URAD_TO_RAD * parameterScale;
-  const scaleX = 1 + (magnificationPpm + asymScaleXPpm) * PPM * parameterScale;
-  const scaleY = 1 + (magnificationPpm + asymScaleYPpm) * PPM * parameterScale;
-  const scaledX = localPoint.x * scaleX;
-  const scaledY = localPoint.y * scaleY;
-  const cosTheta = Math.cos(theta);
-  const sinTheta = Math.sin(theta);
-
-  return {
-    x: cosTheta * scaledX - sinTheta * scaledY,
-    y: sinTheta * scaledX + cosTheta * scaledY,
-  };
-}
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
+  return applyIndependentTransformUm(localPoint, {
+    translationNm: { x: 0, y: 0 },
+    rotationUrad: rotationUrad * parameterScale,
+    magnificationPpm: magnificationPpm * parameterScale,
+    asymScaleXPpm: asymScaleXPpm * parameterScale,
+    asymScaleYPpm: asymScaleYPpm * parameterScale,
+  });
 }
 
 export function computeRenderedFieldFrame(
@@ -235,7 +226,7 @@ export function applyFieldTransformToRenderedQuad(
 
 export function applyCornerOverlayToQuad(
   quad: CornerTuple<Vec2>,
-  overlay: EntityOverlay | undefined,
+  overlay: CornerOverlay | undefined,
   pxPerUm: number,
   renderScale: number,
 ): CornerTuple<Vec2> {
@@ -246,38 +237,7 @@ export function applyCornerOverlayToQuad(
   ]) as CornerTuple<Vec2>;
 }
 
-export function projectLocalPointInQuad(
-  quad: CornerTuple<Vec2>,
-  localPoint: Point,
-  fieldHalfW: number,
-  fieldHalfH: number,
-): Vec2 {
-  const tx = (localPoint.x + fieldHalfW) / (2 * fieldHalfW);
-  const ty = (fieldHalfH - localPoint.y) / (2 * fieldHalfH);
 
-  const top: Vec2 = [
-    lerp(quad[0][0], quad[1][0], tx),
-    lerp(quad[0][1], quad[1][1], tx),
-  ];
-  const bottom: Vec2 = [
-    lerp(quad[3][0], quad[2][0], tx),
-    lerp(quad[3][1], quad[2][1], tx),
-  ];
-
-  return [
-    lerp(top[0], bottom[0], ty),
-    lerp(top[1], bottom[1], ty),
-  ];
-}
-
-export function projectLocalCornersInQuad(
-  quad: CornerTuple<Vec2>,
-  localCorners: CornerTuple<Point>,
-  fieldHalfW: number,
-  fieldHalfH: number,
-): CornerTuple<Vec2> {
-  return localCorners.map((corner) => projectLocalPointInQuad(quad, corner, fieldHalfW, fieldHalfH)) as CornerTuple<Vec2>;
-}
 
 export function projectLocalPoint(frame: RenderedFieldFrame, localPoint: Point): Vec2 {
   return [

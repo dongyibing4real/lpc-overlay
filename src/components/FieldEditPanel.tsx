@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useMemo, useState } from 'react';
-import { useWaferStore, ZERO_OVERLAY } from '../store/useWaferStore';
-import type { EntityOverlay, FieldTransformOverride } from '../types/wafer';
+import { useWaferStore, ZERO_OVERLAY, ZERO_FIELD_TRANSFORM } from '../store/useWaferStore';
+import type { CornerOverlay, FieldTransformOverride } from '../types/wafer';
 import { NumericControlRow } from './common/NumericControlRow';
 
 const CARD: React.CSSProperties = {
@@ -9,15 +9,6 @@ const CARD: React.CSSProperties = {
   padding: '13px 14px',
   border: '1px solid var(--panel-border)',
   boxShadow: 'var(--panel-shadow)',
-};
-
-const ZERO_TRANSFORM: FieldTransformOverride = {
-  Tx: 0,
-  Ty: 0,
-  theta: 0,
-  M: 0,
-  Sx: 0,
-  Sy: 0,
 };
 
 const CORNER_LABELS = ['TL', 'TR', 'BR', 'BL'] as const;
@@ -64,8 +55,8 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
   const fields = useWaferStore((s) => s.fields);
   const selectedFieldId = useWaferStore((s) => s.selectedFieldId);
   const selectField = useWaferStore((s) => s.selectField);
-  const perFieldTransformOverrides = useWaferStore((s) => s.perFieldTransformOverrides);
-  const perFieldCornerOverlays = useWaferStore((s) => s.perFieldCornerOverlays);
+  const selectedTransform = useWaferStore((s) => s.selectedFieldId ? s.perFieldTransformOverrides[s.selectedFieldId] ?? null : null);
+  const selectedCornerOverlay = useWaferStore((s) => s.selectedFieldId ? s.perFieldCornerOverlays[s.selectedFieldId] ?? null : null);
   const setFieldTransformOverride = useWaferStore((s) => s.setFieldTransformOverride);
   const resetFieldTransformOverride = useWaferStore((s) => s.resetFieldTransformOverride);
   const setFieldCornerOverlay = useWaferStore((s) => s.setFieldCornerOverlay);
@@ -76,24 +67,24 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
     [fields, selectedFieldId],
   );
 
-  const [transformDraft, setTransformDraft] = useState<FieldTransformOverride>(ZERO_TRANSFORM);
-  const [cornerDraft, setCornerDraft] = useState<EntityOverlay>(ZERO_OVERLAY);
+  const [transformDraft, setTransformDraft] = useState<FieldTransformOverride>(ZERO_FIELD_TRANSFORM);
+  const [cornerDraft, setCornerDraft] = useState<CornerOverlay>(ZERO_OVERLAY);
   const [showTransform, setShowTransform] = useState(true);
-  const [showCorners, setShowCorners] = useState(!floating);
+  const [showCorners, setShowCorners] = useState(true);
 
   useEffect(() => {
     if (!selectedFieldId) {
-      setTransformDraft(ZERO_TRANSFORM);
+      setTransformDraft(ZERO_FIELD_TRANSFORM);
       setCornerDraft(ZERO_OVERLAY);
       return;
     }
-    setTransformDraft(perFieldTransformOverrides[selectedFieldId] ?? ZERO_TRANSFORM);
-    setCornerDraft(perFieldCornerOverlays[selectedFieldId] ?? ZERO_OVERLAY);
-  }, [selectedFieldId, perFieldTransformOverrides, perFieldCornerOverlays]);
+    setTransformDraft(selectedTransform ?? ZERO_FIELD_TRANSFORM);
+    setCornerDraft(selectedCornerOverlay ?? ZERO_OVERLAY);
+  }, [selectedFieldId, selectedTransform, selectedCornerOverlay]);
 
   useEffect(() => {
     setShowTransform(true);
-    setShowCorners(!floating);
+    setShowCorners(true);
   }, [floating, selectedFieldId]);
 
   const updateTransform = (patch: Partial<FieldTransformOverride>) => {
@@ -104,9 +95,9 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
 
   const updateCornerValue = (cornerIndex: number, axis: 'x' | 'y', value: number) => {
     if (!selectedFieldId) return;
-    const next: EntityOverlay = {
-      cornerDx: [...cornerDraft.cornerDx] as EntityOverlay['cornerDx'],
-      cornerDy: [...cornerDraft.cornerDy] as EntityOverlay['cornerDy'],
+    const next: CornerOverlay = {
+      cornerDx: [...cornerDraft.cornerDx] as CornerOverlay['cornerDx'],
+      cornerDy: [...cornerDraft.cornerDy] as CornerOverlay['cornerDy'],
     };
     if (axis === 'x') next.cornerDx[cornerIndex] = value;
     else next.cornerDy[cornerIndex] = value;
@@ -283,7 +274,7 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
                 <button
                   onClick={() => {
                     resetFieldTransformOverride(selectedField.id);
-                    setTransformDraft(ZERO_TRANSFORM);
+                    setTransformDraft(ZERO_FIELD_TRANSFORM);
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
                   style={sectionActionButtonStyle}

@@ -1,22 +1,9 @@
-import type { DieCell, DistortedPosition, EntityOverlay, FieldTransformOverride, Point } from '../types/wafer';
+import type { DistortedPosition, CornerOverlay, FieldTransformOverride, Point } from '../types/wafer';
+import { applyIndependentTransformUm } from './overlayTransform';
 
 export const FIELD_EDIT_RENDER_SCALE = 10000;
-const PPM = 1e-6;
 
 type CornerTuplePoint = [Point, Point, Point, Point];
-
-function normalizeAngleRad(angle: number): number {
-  let value = angle;
-  while (value > Math.PI) value -= Math.PI * 2;
-  while (value < -Math.PI) value += Math.PI * 2;
-  return value;
-}
-
-function getEffectiveFieldEditRotationUrad(thetaUrad: number): number {
-  const displayAngleRad = thetaUrad * 1e-6 * FIELD_EDIT_RENDER_SCALE;
-  const normalizedDisplayAngleRad = normalizeAngleRad(displayAngleRad);
-  return normalizedDisplayAngleRad / (1e-6 * FIELD_EDIT_RENDER_SCALE);
-}
 
 function getFieldLocalCorners(fieldHalfW: number, fieldHalfH: number): CornerTuplePoint {
   return [
@@ -24,15 +11,6 @@ function getFieldLocalCorners(fieldHalfW: number, fieldHalfH: number): CornerTup
     { x: fieldHalfW, y: fieldHalfH },
     { x: fieldHalfW, y: -fieldHalfH },
     { x: -fieldHalfW, y: -fieldHalfH },
-  ];
-}
-
-function getDieLocalCorners(die: DieCell, dieHalfW: number, dieHalfH: number): CornerTuplePoint {
-  return [
-    { x: die.localPos.x - dieHalfW, y: die.localPos.y + dieHalfH },
-    { x: die.localPos.x + dieHalfW, y: die.localPos.y + dieHalfH },
-    { x: die.localPos.x + dieHalfW, y: die.localPos.y - dieHalfH },
-    { x: die.localPos.x - dieHalfW, y: die.localPos.y - dieHalfH },
   ];
 }
 
@@ -72,18 +50,13 @@ function getQuadCenter(quad: CornerTuplePoint): Point {
 }
 
 function transformFieldLocalPoint(localPoint: Point, transform: FieldTransformOverride): Point {
-  const theta = getEffectiveFieldEditRotationUrad(transform.theta) * 1e-6;
-  const scaleX = 1 + (transform.M + transform.Sx) * PPM;
-  const scaleY = 1 + (transform.M + transform.Sy) * PPM;
-  const scaledX = localPoint.x * scaleX;
-  const scaledY = localPoint.y * scaleY;
-  const cosTheta = Math.cos(theta);
-  const sinTheta = Math.sin(theta);
-
-  return {
-    x: cosTheta * scaledX - sinTheta * scaledY,
-    y: sinTheta * scaledX + cosTheta * scaledY,
-  };
+  return applyIndependentTransformUm(localPoint, {
+    translationNm: { x: 0, y: 0 },
+    rotationUrad: transform.theta,
+    magnificationPpm: transform.M,
+    asymScaleXPpm: transform.Sx,
+    asymScaleYPpm: transform.Sy,
+  });
 }
 
 export function isZeroFieldTransform(transform?: FieldTransformOverride): boolean {
@@ -98,7 +71,7 @@ export function isZeroFieldTransform(transform?: FieldTransformOverride): boolea
   );
 }
 
-export function isZeroOverlay(overlay?: EntityOverlay): boolean {
+export function isZeroOverlay(overlay?: CornerOverlay): boolean {
   if (!overlay) return true;
   return (
     overlay.cornerDx.every((v) => v === 0)
@@ -118,14 +91,6 @@ export function buildDistortedCornersFromOffsets(
     { x: designCorners[2].x + cornerDx[2] * 1e-3, y: designCorners[2].y + cornerDy[2] * 1e-3 },
     { x: designCorners[3].x + cornerDx[3] * 1e-3, y: designCorners[3].y + cornerDy[3] * 1e-3 },
   ];
-}
-
-function getResultQuad(result: DistortedPosition): CornerTuplePoint {
-  if (result.distortedCorners) return result.distortedCorners;
-  if (result.designCorners && result.cornerDx && result.cornerDy) {
-    return buildDistortedCornersFromOffsets(result.designCorners, result.cornerDx, result.cornerDy)!;
-  }
-  throw new Error(`Result ${result.entityId} is missing corner geometry`);
 }
 
 function buildResultFromGeometry(
@@ -188,51 +153,13 @@ export function applyFieldTransformToQuadUm(
 
 export function applyCornerOverlayToQuadUm(
   quad: CornerTuplePoint,
-  overlay: EntityOverlay | undefined,
+  overlay: CornerOverlay | undefined,
 ): CornerTuplePoint {
   if (!overlay) return quad;
   return quad.map((corner, index) => ({
     x: corner.x + overlay.cornerDx[index] * 1e-3,
     y: corner.y + overlay.cornerDy[index] * 1e-3,
   })) as CornerTuplePoint;
-}
-
-export function applyFieldEditToDieResult(
-  result: DistortedPosition,
-  die: DieCell,
-  baseFieldQuad: CornerTuplePoint,
-  finalFieldQuad: CornerTuplePoint,
-  dieHalfW: number,
-  dieHalfH: number,
-  fieldHalfW: number,
-  fieldHalfH: number,
-): DistortedPosition {
-  const localCorners = getDieLocalCorners(die, dieHalfW, dieHalfH);
-  const baseCenterProjected = projectPointInQuadUm(baseFieldQuad, die.localPos, fieldHalfW, fieldHalfH);
-  const finalCenterProjected = projectPointInQuadUm(finalFieldQuad, die.localPos, fieldHalfW, fieldHalfH);
-  const centerResidual = {
-    x: result.distortedPos.x - baseCenterProjected.x,
-    y: result.distortedPos.y - baseCenterProjected.y,
-  };
-  const distortedPos = {
-    x: finalCenterProjected.x + centerResidual.x,
-    y: finalCenterProjected.y + centerResidual.y,
-  };
-  const baseCorners = result.distortedCorners ?? getResultQuad(result);
-  const distortedCorners = localCorners.map((corner, index) => {
-    const baseProjectedCorner = projectPointInQuadUm(baseFieldQuad, corner, fieldHalfW, fieldHalfH);
-    const finalProjectedCorner = projectPointInQuadUm(finalFieldQuad, corner, fieldHalfW, fieldHalfH);
-    const residual = {
-      x: baseCorners[index].x - baseProjectedCorner.x,
-      y: baseCorners[index].y - baseProjectedCorner.y,
-    };
-    return {
-      x: finalProjectedCorner.x + residual.x,
-      y: finalProjectedCorner.y + residual.y,
-    };
-  }) as CornerTuplePoint;
-
-  return buildResultFromGeometry(result, distortedPos, distortedCorners);
 }
 
 export function applyFieldEditToFieldResult(

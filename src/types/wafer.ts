@@ -53,14 +53,6 @@ export interface FieldCell {
   isActive: boolean;
 }
 
-export interface DieCell {
-  id: string;
-  fieldId: string;
-  localPos: Point; // Position relative to field center in um.
-  designPos: Point; // Absolute wafer position in um.
-  isActive: boolean;
-}
-
 export interface DistortedPosition {
   entityId: string;
   designPos: Point;
@@ -73,9 +65,12 @@ export interface DistortedPosition {
   // Corner displacements use [TL, TR, BR, BL] in visual order.
   cornerDx?: [number, number, number, number];
   cornerDy?: [number, number, number, number];
+  // Present on die-level results derived from fields.
+  fieldId?: string;
+  localPos?: Point;
 }
 
-export interface EntityOverlay {
+export interface CornerOverlay {
   // Per-corner offsets in nm, added on top of parametric distortion.
   cornerDx: [number, number, number, number];
   cornerDy: [number, number, number, number];
@@ -118,4 +113,17 @@ export interface OverlayStats {
   maxMagnitude: number;
   p99Magnitude: number;
   count: number;
+}
+
+export interface WaferSceneSnapshot {
+  layoutConfig: WaferLayoutConfig;
+  waferDistortion: WaferDistortionParams;
+  fieldDistortion: FieldDistortionParams;
+  epeConfig: EPEConfig;
+  viewState: ViewState;
+  importedData: OverlayRecord[] | null;
+  perCornerOverlays: Record<string, CornerOverlay>;
+  selectedFieldId: string | null;
+  perFieldTransformOverrides: Record<string, FieldTransformOverride>;
+  perFieldCornerOverlays: Record<string, CornerOverlay>;
 }

@@ -7,7 +7,6 @@ import {
   applyFieldTransformToRenderedQuad,
   computeRenderedFieldFrame,
 } from '../../utils/renderCorners';
-import { FIELD_EDIT_RENDER_SCALE } from '../../utils/fieldEditGeometry';
 
 interface Props {
   layout: WaferLayoutHook;
@@ -16,6 +15,7 @@ interface Props {
 }
 
 const FIELD_VECTOR_POLYGON_LOD_ZOOM = 0.9;
+const GEOMETRY_RENDER_SCALE = 1;
 
 export const FieldVectorLayer: React.FC<Props> = memo(({ layout, clipId, zoomScale }) => {
   const distortionResults = useWaferStore((s) => s.distortionResults);
@@ -50,7 +50,7 @@ export const FieldVectorLayer: React.FC<Props> = memo(({ layout, clipId, zoomSca
             waferDistortion,
             fieldDistortion,
             layout.toPixel,
-            FIELD_EDIT_RENDER_SCALE,
+            GEOMETRY_RENDER_SCALE,
           )
         : null;
       const transformedQuad = baseFrame
@@ -60,7 +60,7 @@ export const FieldVectorLayer: React.FC<Props> = memo(({ layout, clipId, zoomSca
           layoutConfig.fieldHeightMm * 500,
           perFieldTransformOverrides[field.id],
           layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
+          GEOMETRY_RENDER_SCALE,
         )
         : null;
       const polygonPoints = transformedQuad
@@ -68,7 +68,7 @@ export const FieldVectorLayer: React.FC<Props> = memo(({ layout, clipId, zoomSca
           transformedQuad,
           perFieldCornerOverlays[field.id],
           layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
+          GEOMETRY_RENDER_SCALE,
         ).map((c) => `${c[0]},${c[1]}`).join(' ')
         : null;
 
