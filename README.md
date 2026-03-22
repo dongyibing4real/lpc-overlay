@@ -28,6 +28,24 @@ A browser-based visual sandbox for generating, inspecting, editing, and exportin
 
 ![LPC Overlay field edit panel](./docs/readme/field-edit.png)
 
+## Showcase GIFs
+
+### Wafer-level transform
+
+![LPC Overlay wafer-level transform showcase](./docs/readme/showcase-wafer-transform.gif)
+
+### Field-level transform
+
+![LPC Overlay field-level transform showcase](./docs/readme/showcase-field-transform.gif)
+
+### Field edit
+
+![LPC Overlay field edit showcase](./docs/readme/showcase-field-edit.gif)
+
+### Agent workflow
+
+![LPC Overlay agent workflow showcase](./docs/readme/showcase-agent.gif)
+
 ## Why this project exists
 
 Overlay analysis workflows often need realistic but controllable data:
@@ -113,6 +131,14 @@ This gives you a good "default story" for the product without having to manually
 7. Review statistics, magnitude coloring, and vector direction on the `Distortion Vector Map`.
 8. Export the generated dataset as `CSV` or `JSON` in either `mm` or `nm`.
 
+## Using LPC Agent
+
+1. Click the floating `LPC Agent` button to open the panel.
+2. Open `Settings` once to choose the active model source and fill in the connection details.
+3. Pick a prompt shortcut such as `Generate Plan`, then describe the scene change or analysis you want.
+4. Review the draft plan, including the executable actions and any warnings.
+5. Click `Apply` to update the scene, or `Undo` to revert the last applied agent change.
+
 ## Interaction Model
 
 - `Actual Map` prioritizes editable geometry and local field inspection.
@@ -178,6 +204,12 @@ npm run build
 
 ```bash
 npm run lint
+```
+
+### Generate showcase GIFs
+
+```bash
+npm run showcase:gifs
 ```
 
 ## Project Structure

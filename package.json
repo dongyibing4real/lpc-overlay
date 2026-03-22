@@ -9,7 +9,8 @@
     "dev:full": "concurrently \"npm run agent\" \"npm run dev\"",
     "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "showcase:gifs": "node scripts/generate-showcases.mjs"
   },
   "dependencies": {
     "@use-gesture/react": "^10.3.1",
@@ -37,7 +38,10 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "gifenc": "^1.0.3",
     "globals": "^17.4.0",
+    "playwright": "^1.58.2",
+    "pngjs": "^7.0.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",

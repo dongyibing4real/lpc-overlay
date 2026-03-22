@@ -76,7 +76,7 @@ export const AgentSettingsModal: React.FC<AgentSettingsModalProps> = ({
             </div>
           </div>
           <button onClick={onClose} style={{ ...SECONDARY_BUTTON, minHeight: 32, width: 32, padding: 0 }} aria-label="Close settings">
-            ×
+            x
           </button>
         </div>
 
