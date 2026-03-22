@@ -214,20 +214,25 @@ async function captureFieldTransform(page) {
 }
 
 async function captureFieldEdit(page) {
+  const showcaseFieldId = 'f_2_0';
+
   await resetScene(page);
   await page.evaluate(() => {
     const waferStore = window.__LPC_SHOWCASE__.waferStore.getState();
     waferStore.setViewState({ granularity: 'field', arrowScaleFactor: 30000 });
-    waferStore.selectField('f_0_0');
   });
+  await page.evaluate((fieldId) => {
+    const waferStore = window.__LPC_SHOWCASE__.waferStore.getState();
+    waferStore.selectField(fieldId);
+  }, showcaseFieldId);
   await page.waitForTimeout(500);
 
   const frames = await captureTween(page, 24, async (progress) => {
     const eased = easeInOut(progress);
-    await page.evaluate((value) => {
+    await page.evaluate(({ fieldId, value }) => {
       const waferStore = window.__LPC_SHOWCASE__.waferStore.getState();
-      waferStore.selectField('f_0_0');
-      waferStore.setFieldTransformOverride('f_0_0', {
+      waferStore.selectField(fieldId);
+      waferStore.setFieldTransformOverride(fieldId, {
         Tx: Math.round(130 * value),
         Ty: Math.round(-95 * value),
         theta: Math.round(160 * value),
@@ -235,7 +240,7 @@ async function captureFieldEdit(page) {
         Sx: Math.round(0.7 * value * 100) / 100,
         Sy: Math.round(-0.5 * value * 100) / 100,
       });
-      waferStore.setFieldCornerOverlay('f_0_0', {
+      waferStore.setFieldCornerOverlay(fieldId, {
         cornerDx: [
           Math.round(40 * value),
           Math.round(110 * value),
@@ -249,7 +254,7 @@ async function captureFieldEdit(page) {
           Math.round(35 * value),
         ],
       });
-    }, eased);
+    }, { fieldId: showcaseFieldId, value: eased });
   });
 
   await writeGif(path.join(OUTPUT_DIR, 'showcase-field-edit.gif'), frames);

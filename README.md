@@ -10,23 +10,9 @@ A browser-based visual sandbox for generating, inspecting, editing, and exportin
 
 - Side-by-side `Actual Map` and `Distortion Vector Map` views
 - Wafer-level, field-level, and local per-field editing in one workspace
-- Built-in `Showcase` preset for demo-ready screenshots and presentations
+- Built-in `Showcase` preset for demo-ready walkthroughs and presentations
 - `Die` / `Field` granularity switching for different analysis modes
 - Export to `CSV` and `JSON` with `mm` / `nm` unit selection
-
-## Screenshots
-
-### Showcase Demo
-
-![LPC Overlay showcase demo](./docs/readme/showcase-demo.png)
-
-### Full workspace
-
-![LPC Overlay overview](./docs/readme/overview.png)
-
-### Interactive field editing
-
-![LPC Overlay field edit panel](./docs/readme/field-edit.png)
 
 ## Showcase GIFs
 
@@ -87,7 +73,7 @@ This app focuses on that gap: fast visual iteration with enough geometry awarene
 
 ## Demo Preset
 
-The `Load Complex Demo` action in the left-side `Showcase` card is intended for instant demos and screenshots.
+The `Load Complex Demo` action in the left-side `Showcase` card is intended for instant demos and walkthroughs.
 
 It applies:
 
@@ -237,7 +223,7 @@ src/
 - Make distortion behavior easy to explore visually.
 - Keep local field edits first-class instead of treating them as edge cases.
 - Preserve a fast feedback loop while editing sliders and handles.
-- Provide a "show it now" demo mode for screenshots, stakeholder reviews, and onboarding.
+- Provide a "show it now" demo mode for walkthroughs, stakeholder reviews, and onboarding.
 - Export data in formats that are useful outside the UI.
 - Stay simple enough for experimentation, demos, and future extension.
 
