@@ -3,39 +3,14 @@ import type {
   WaferDistortionParams,
   FieldDistortionParams,
   EPEConfig,
-  DieCell,
+  WaferLayoutConfig,
   FieldCell,
   DistortedPosition,
   OverlayStats,
 } from '../types/wafer';
+import { applyIndependentTransformUm } from './overlayTransform';
 
 const NM_TO_UM = 1e-3;
-const PPM = 1e-6;
-const URAD_TO_RAD = 1e-6;
-
-function applyIndependentDistortionTransform(
-  pos: Point,
-  translationNm: Point,
-  rotationUrad: number,
-  magnificationPpm: number,
-  asymScaleXPpm: number,
-  asymScaleYPpm: number,
-): Point {
-  const tx = translationNm.x * NM_TO_UM;
-  const ty = translationNm.y * NM_TO_UM;
-  const theta = rotationUrad * URAD_TO_RAD;
-  const cosTheta = Math.cos(theta);
-  const sinTheta = Math.sin(theta);
-  const scaleDx = (magnificationPpm + asymScaleXPpm) * PPM * pos.x;
-  const scaleDy = (magnificationPpm + asymScaleYPpm) * PPM * pos.y;
-  const rotDx = (cosTheta - 1) * pos.x - sinTheta * pos.y;
-  const rotDy = sinTheta * pos.x + (cosTheta - 1) * pos.y;
-
-  return {
-    x: pos.x + tx + scaleDx + rotDx,
-    y: pos.y + ty + scaleDy + rotDy,
-  };
-}
 
 export function computeIndependentOverlayNm(
   pos: Point,
@@ -45,13 +20,15 @@ export function computeIndependentOverlayNm(
   asymScaleXPpm: number,
   asymScaleYPpm: number,
 ): [number, number] {
-  const transformed = applyIndependentDistortionTransform(
+  const transformed = applyIndependentTransformUm(
     pos,
-    translationNm,
-    rotationUrad,
-    magnificationPpm,
-    asymScaleXPpm,
-    asymScaleYPpm,
+    {
+      translationNm,
+      rotationUrad,
+      magnificationPpm,
+      asymScaleXPpm,
+      asymScaleYPpm,
+    },
   );
 
   return [
@@ -64,13 +41,15 @@ export function applyWaferTransform(
   nominalCenter: Point,
   params: WaferDistortionParams,
 ): Point {
-  return applyIndependentDistortionTransform(
+  return applyIndependentTransformUm(
     nominalCenter,
-    { x: params.Tx, y: params.Ty },
-    params.theta,
-    params.M,
-    params.Sx,
-    params.Sy,
+    {
+      translationNm: { x: params.Tx, y: params.Ty },
+      rotationUrad: params.theta,
+      magnificationPpm: params.M,
+      asymScaleXPpm: params.Sx,
+      asymScaleYPpm: params.Sy,
+    },
   );
 }
 
@@ -78,13 +57,15 @@ export function applyFieldTransform(
   localPos: Point,
   params: FieldDistortionParams,
 ): Point {
-  return applyIndependentDistortionTransform(
+  return applyIndependentTransformUm(
     localPos,
-    { x: params.FTx, y: params.FTy },
-    params.Ftheta,
-    params.FM,
-    params.FSx,
-    params.FSy,
+    {
+      translationNm: { x: params.FTx, y: params.FTy },
+      rotationUrad: params.Ftheta,
+      magnificationPpm: params.FM,
+      asymScaleXPpm: params.FSx,
+      asymScaleYPpm: params.FSy,
+    },
   );
 }
 
@@ -148,79 +129,6 @@ function overlayNmAt(
   ];
 }
 
-export function computeDieDistortion(
-  die: DieCell,
-  _field: FieldCell,
-  waferParams: WaferDistortionParams,
-  fieldParams: FieldDistortionParams,
-  epeConfig: EPEConfig,
-  dieIndex: number,
-  dieHalfW: number,
-  dieHalfH: number,
-): DistortedPosition {
-  const transformedAbsPos = applyWaferTransform(die.designPos, waferParams);
-  const transformedLocalPos = applyFieldTransform(die.localPos, fieldParams);
-  const intrafieldOverlayX = transformedLocalPos.x - die.localPos.x;
-  const intrafieldOverlayY = transformedLocalPos.y - die.localPos.y;
-
-  const preEpePos: Point = {
-    x: transformedAbsPos.x + intrafieldOverlayX,
-    y: transformedAbsPos.y + intrafieldOverlayY,
-  };
-
-  const distortedPos = applyEPE(preEpePos, epeConfig, dieIndex);
-  const epeX = distortedPos.x - preEpePos.x;
-  const epeY = distortedPos.y - preEpePos.y;
-
-  const dx = (distortedPos.x - die.designPos.x) * 1e3;
-  const dy = (distortedPos.y - die.designPos.y) * 1e3;
-
-  const cornerDx = [0, 0, 0, 0] as [number, number, number, number];
-  const cornerDy = [0, 0, 0, 0] as [number, number, number, number];
-  const dx0 = die.designPos.x;
-  const dy0 = die.designPos.y;
-  const lx0 = die.localPos.x;
-  const ly0 = die.localPos.y;
-  const designCorners: [Point, Point, Point, Point] = [
-    { x: dx0 - dieHalfW, y: dy0 + dieHalfH },
-    { x: dx0 + dieHalfW, y: dy0 + dieHalfH },
-    { x: dx0 + dieHalfW, y: dy0 - dieHalfH },
-    { x: dx0 - dieHalfW, y: dy0 - dieHalfH },
-  ];
-  const distortedCorners = [designCorners[0], designCorners[1], designCorners[2], designCorners[3]] as [Point, Point, Point, Point];
-
-  for (let i = 0; i < 4; i += 1) {
-    const ox = CORNER_SIGNS[i][0] * dieHalfW;
-    const oy = CORNER_SIGNS[i][1] * dieHalfH;
-    const absCorner = { x: dx0 + ox, y: dy0 + oy };
-    const localCorner = { x: lx0 + ox, y: ly0 + oy };
-    const wt = applyWaferTransform(absCorner, waferParams);
-    const ft = applyFieldTransform(localCorner, fieldParams);
-    const cdx = (wt.x - absCorner.x + ft.x - localCorner.x) * 1e3 + epeX * 1e3;
-    const cdy = (wt.y - absCorner.y + ft.y - localCorner.y) * 1e3 + epeY * 1e3;
-
-    cornerDx[i] = cdx;
-    cornerDy[i] = cdy;
-    distortedCorners[i] = {
-      x: designCorners[i].x + cdx * NM_TO_UM,
-      y: designCorners[i].y + cdy * NM_TO_UM,
-    };
-  }
-
-  return {
-    entityId: die.id,
-    designPos: die.designPos,
-    distortedPos,
-    designCorners,
-    distortedCorners: distortedCorners as [Point, Point, Point, Point],
-    dx,
-    dy,
-    magnitude: Math.sqrt(dx * dx + dy * dy),
-    cornerDx,
-    cornerDy,
-  };
-}
-
 export function computeFieldDistortion(
   field: FieldCell,
   waferParams: WaferDistortionParams,
@@ -267,6 +175,123 @@ export function computeFieldDistortion(
     cornerDx,
     cornerDy,
   };
+}
+
+// ─── Field-driven die interpolation ──────────────────────────────────────────
+
+function projectPointInQuad(
+  quad: [Point, Point, Point, Point],
+  localPoint: Point,
+  fieldHalfW: number,
+  fieldHalfH: number,
+): Point {
+  const tx = (localPoint.x + fieldHalfW) / (2 * fieldHalfW);
+  const ty = (fieldHalfH - localPoint.y) / (2 * fieldHalfH);
+  const topX = quad[0].x + (quad[1].x - quad[0].x) * tx;
+  const topY = quad[0].y + (quad[1].y - quad[0].y) * tx;
+  const botX = quad[3].x + (quad[2].x - quad[3].x) * tx;
+  const botY = quad[3].y + (quad[2].y - quad[3].y) * tx;
+  return {
+    x: topX + (botX - topX) * ty,
+    y: topY + (botY - topY) * ty,
+  };
+}
+
+/**
+ * Derives die-level DistortedPosition[] from a field's final distorted quad.
+ * The final quad already includes wafer distortion, field distortion,
+ * per-field transform overrides, and per-field corner overlays.
+ */
+export function interpolateDieResultsFromField(
+  field: FieldCell,
+  finalFieldQuad: [Point, Point, Point, Point],
+  _fieldResult: DistortedPosition,
+  epeConfig: EPEConfig,
+  layoutConfig: WaferLayoutConfig,
+  fieldHalfW: number,
+  fieldHalfH: number,
+  globalDieIndexOffset: number,
+): DistortedPosition[] {
+  const { diesPerFieldX, diesPerFieldY, fieldWidthMm, fieldHeightMm } = layoutConfig;
+  const dw = (fieldWidthMm * 1000) / diesPerFieldX;
+  const dh = (fieldHeightMm * 1000) / diesPerFieldY;
+  const dieHalfW = dw / 2;
+  const dieHalfH = dh / 2;
+
+  const results: DistortedPosition[] = [];
+  let dieIdx = globalDieIndexOffset;
+
+  for (let dr = 0; dr < diesPerFieldY; dr++) {
+    for (let dc = 0; dc < diesPerFieldX; dc++) {
+      const localX = (dc - (diesPerFieldX - 1) / 2) * dw;
+      const localY = (dr - (diesPerFieldY - 1) / 2) * dh;
+      const localPos: Point = { x: localX, y: localY };
+      const designPos: Point = {
+        x: field.centerDesign.x + localX,
+        y: field.centerDesign.y + localY,
+      };
+
+      // Bilinear interpolation of die center within the field quad
+      const interpolatedPos = projectPointInQuad(finalFieldQuad, localPos, fieldHalfW, fieldHalfH);
+
+      // Apply EPE noise
+      const distortedPos = applyEPE(interpolatedPos, epeConfig, dieIdx);
+
+      const dx = (distortedPos.x - designPos.x) * 1e3;
+      const dy = (distortedPos.y - designPos.y) * 1e3;
+
+      // Interpolate die corners
+      const designCorners: [Point, Point, Point, Point] = [
+        { x: designPos.x - dieHalfW, y: designPos.y + dieHalfH },
+        { x: designPos.x + dieHalfW, y: designPos.y + dieHalfH },
+        { x: designPos.x + dieHalfW, y: designPos.y - dieHalfH },
+        { x: designPos.x - dieHalfW, y: designPos.y - dieHalfH },
+      ];
+      const localCorners: [Point, Point, Point, Point] = [
+        { x: localX - dieHalfW, y: localY + dieHalfH },
+        { x: localX + dieHalfW, y: localY + dieHalfH },
+        { x: localX + dieHalfW, y: localY - dieHalfH },
+        { x: localX - dieHalfW, y: localY - dieHalfH },
+      ];
+
+      const epeOffsetX = distortedPos.x - interpolatedPos.x;
+      const epeOffsetY = distortedPos.y - interpolatedPos.y;
+
+      const cornerDx = [0, 0, 0, 0] as [number, number, number, number];
+      const cornerDy = [0, 0, 0, 0] as [number, number, number, number];
+      const distortedCorners: [Point, Point, Point, Point] = [
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+      ];
+
+      for (let i = 0; i < 4; i++) {
+        const projected = projectPointInQuad(finalFieldQuad, localCorners[i], fieldHalfW, fieldHalfH);
+        const cx = projected.x + epeOffsetX;
+        const cy = projected.y + epeOffsetY;
+        distortedCorners[i] = { x: cx, y: cy };
+        cornerDx[i] = (cx - designCorners[i].x) * 1e3;
+        cornerDy[i] = (cy - designCorners[i].y) * 1e3;
+      }
+
+      results.push({
+        entityId: `d_${field.col}_${field.row}_${dc}_${dr}`,
+        designPos,
+        distortedPos,
+        designCorners,
+        distortedCorners,
+        dx,
+        dy,
+        magnitude: Math.sqrt(dx * dx + dy * dy),
+        cornerDx,
+        cornerDy,
+        fieldId: field.id,
+        localPos,
+      });
+
+      dieIdx++;
+    }
+  }
+
+  return results;
 }
 
 // O(N) average-case selection; avoids full sort for P99/max

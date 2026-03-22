@@ -9,19 +9,17 @@ import type {
   OverlayRecord,
   DistortedPosition,
   FieldCell,
-  DieCell,
   CornerOverlay,
   FieldTransformOverride,
   WaferSceneSnapshot,
 } from '../types/wafer';
-import { generateFieldGrid, generateDieGrid } from '../utils/waferGeometry';
+import { generateFieldGrid } from '../utils/waferGeometry';
 import {
-  computeDieDistortion,
   computeFieldDistortion,
+  interpolateDieResultsFromField,
 } from '../utils/distortionMath';
 import {
   applyCornerOverlayToQuadUm,
-  applyFieldEditToDieResult,
   applyFieldEditToFieldResult,
   applyFieldTransformToQuadUm,
   buildDistortedCornersFromOffsets,
@@ -282,7 +280,6 @@ interface WaferState {
   epeConfig: EPEConfig;
   viewState: ViewState;
   fields: FieldCell[];
-  dies: DieCell[];
   distortionResults: DistortedPosition[];
   importedData: OverlayRecord[] | null;
   perCornerOverlays: Record<string, CornerOverlay>;
@@ -316,14 +313,6 @@ interface WaferState {
 // ─── Store ─────────────────────────────────────────────────────────────────────
 
 const initialFields = generateFieldGrid(DEFAULT_LAYOUT);
-const initialDies = generateDieGrid(initialFields, DEFAULT_LAYOUT);
-const initialFieldMap = new Map(initialFields.map((f) => [f.id, f]));
-const initDieHalfW = (DEFAULT_LAYOUT.fieldWidthMm * 1000) / (2 * DEFAULT_LAYOUT.diesPerFieldX);
-const initDieHalfH = (DEFAULT_LAYOUT.fieldHeightMm * 1000) / (2 * DEFAULT_LAYOUT.diesPerFieldY);
-const initialResults = initialDies.map((die, idx) => {
-  const field = initialFieldMap.get(die.fieldId)!;
-  return computeDieDistortion(die, field, DEFAULT_WAFER, DEFAULT_FIELD, DEFAULT_EPE, idx, initDieHalfW, initDieHalfH);
-});
 
 export const useWaferStore = create<WaferState>()(
   immer((set, get) => ({
@@ -333,8 +322,7 @@ export const useWaferStore = create<WaferState>()(
     epeConfig: DEFAULT_EPE,
     viewState: DEFAULT_VIEW,
     fields: initialFields,
-    dies: initialDies,
-    distortionResults: initialResults,
+    distortionResults: [],
     importedData: null,
     perCornerOverlays: {} as Record<string, CornerOverlay>,
     selectedFieldId: null,
@@ -348,23 +336,23 @@ export const useWaferStore = create<WaferState>()(
 
     setWaferDistortion(params) {
       set((s) => { Object.assign(s.waferDistortion, params); });
-      scheduleRecompute();
+      get().recomputeDistortions();
     },
 
     setFieldDistortion(params) {
       set((s) => { Object.assign(s.fieldDistortion, params); });
-      scheduleRecompute();
+      get().recomputeDistortions();
     },
 
     setEPEConfig(cfg) {
       set((s) => { Object.assign(s.epeConfig, cfg); });
-      scheduleRecompute();
+      get().recomputeDistortions();
     },
 
     setViewState(vs) {
       set((s) => { Object.assign(s.viewState, vs); });
       if (vs.granularity !== undefined) {
-        scheduleRecompute();
+        get().recomputeDistortions();
       }
     },
 
@@ -426,7 +414,7 @@ export const useWaferStore = create<WaferState>()(
           s.perFieldTransformOverrides[id] = next;
         }
       });
-      scheduleRecompute();
+      get().recomputeDistortions();
     },
 
     resetFieldTransformOverride(id) {
@@ -444,7 +432,7 @@ export const useWaferStore = create<WaferState>()(
           s.perFieldCornerOverlays[id] = overlay;
         }
       });
-      scheduleRecompute();
+      get().recomputeDistortions();
     },
 
     resetFieldCornerOverlay(id) {
@@ -461,7 +449,6 @@ export const useWaferStore = create<WaferState>()(
     applyVectorMapShowcase() {
       const layoutConfig = { ...DEFAULT_LAYOUT };
       const fields = generateFieldGrid(layoutConfig);
-      const dies = generateDieGrid(fields, layoutConfig);
       const fieldIdSet = new Set(fields.map((field) => field.id));
       const showcaseFieldTransforms = createShowcaseFieldTransforms();
       const showcaseFieldCorners = createShowcaseFieldCorners();
@@ -475,7 +462,6 @@ export const useWaferStore = create<WaferState>()(
       set((s) => {
         s.layoutConfig = layoutConfig;
         s.fields = fields;
-        s.dies = dies;
         s.waferDistortion = { ...SHOWCASE_WAFER };
         s.fieldDistortion = { ...SHOWCASE_FIELD };
         s.epeConfig = { ...SHOWCASE_EPE };
@@ -527,13 +513,11 @@ export const useWaferStore = create<WaferState>()(
     replaceSceneSnapshot(snapshot) {
       const layoutConfig = structuredClone(snapshot.layoutConfig);
       const fields = generateFieldGrid(layoutConfig);
-      const dies = generateDieGrid(fields, layoutConfig);
       const fieldIdSet = new Set(fields.map((field) => field.id));
 
       set((s) => {
         s.layoutConfig = layoutConfig;
         s.fields = fields;
-        s.dies = dies;
         s.waferDistortion = { ...snapshot.waferDistortion };
         s.fieldDistortion = { ...snapshot.fieldDistortion };
         s.epeConfig = { ...snapshot.epeConfig };
@@ -553,11 +537,9 @@ export const useWaferStore = create<WaferState>()(
     recomputeLayout() {
       const cfg = get().layoutConfig;
       const fields = generateFieldGrid(cfg);
-      const dies = generateDieGrid(fields, cfg);
       const fieldIdSet = new Set(fields.map((field) => field.id));
       set((s) => {
         s.fields = fields;
-        s.dies = dies;
         if (s.selectedFieldId && !fieldIdSet.has(s.selectedFieldId)) {
           s.selectedFieldId = null;
         }
@@ -567,7 +549,6 @@ export const useWaferStore = create<WaferState>()(
 
     recomputeDistortions() {
       const {
-        dies,
         fields,
         layoutConfig,
         waferDistortion,
@@ -582,11 +563,10 @@ export const useWaferStore = create<WaferState>()(
 
       if (viewState.dataSource === 'imported' && importedData) return;
 
-      const fieldMap = new Map(fields.map((f) => [f.id, f]));
-      const dieHalfW = (layoutConfig.fieldWidthMm * 1000) / (2 * layoutConfig.diesPerFieldX);
-      const dieHalfH = (layoutConfig.fieldHeightMm * 1000) / (2 * layoutConfig.diesPerFieldY);
       const fieldHalfW = layoutConfig.fieldWidthMm * 500;
       const fieldHalfH = layoutConfig.fieldHeightMm * 500;
+      const diesPerField = layoutConfig.diesPerFieldX * layoutConfig.diesPerFieldY;
+
       const baseFieldResults = fields.map((field) => computeFieldDistortion(
         field,
         waferDistortion,
@@ -595,43 +575,39 @@ export const useWaferStore = create<WaferState>()(
         fieldHalfH,
       ));
       const baseFieldResultMap = new Map(baseFieldResults.map((result) => [result.entityId, result]));
-      const baseFieldQuadMap = new Map(
-        baseFieldResults.map((result) => [result.entityId, getResultQuad(result)]),
-      );
+
       const finalFieldQuadMap = new Map(
-        fields.map((field) => {
-          const baseFieldQuad = baseFieldQuadMap.get(field.id)!;
+        baseFieldResults.map((result) => {
+          const baseFieldQuad = getResultQuad(result);
           const transformedFieldQuad = applyFieldTransformToQuadUm(
             baseFieldQuad,
             fieldHalfW,
             fieldHalfH,
-            perFieldTransformOverrides[field.id],
+            perFieldTransformOverrides[result.entityId],
           );
           const finalFieldQuad = applyCornerOverlayToQuadUm(
             transformedFieldQuad,
-            perFieldCornerOverlays[field.id],
+            perFieldCornerOverlays[result.entityId],
           );
-          return [field.id, finalFieldQuad] as const;
+          return [result.entityId, finalFieldQuad] as const;
         }),
       );
 
       let results: DistortedPosition[];
 
       if (viewState.granularity === 'die') {
-        results = dies.map((die, idx) => {
-          const field = fieldMap.get(die.fieldId)!;
-          const base = computeDieDistortion(die, field, waferDistortion, fieldDistortion, epeConfig, idx, dieHalfW, dieHalfH);
-          const baseFieldQuad = baseFieldQuadMap.get(die.fieldId)!;
-          const finalFieldQuad = finalFieldQuadMap.get(die.fieldId)!;
-          return applyFieldEditToDieResult(
-            base,
-            die,
-            baseFieldQuad,
-            finalFieldQuad,
-            dieHalfW,
-            dieHalfH,
+        results = fields.flatMap((field, fieldIndex) => {
+          const finalQuad = finalFieldQuadMap.get(field.id)!;
+          const fieldResult = baseFieldResultMap.get(field.id)!;
+          return interpolateDieResultsFromField(
+            field,
+            finalQuad,
+            fieldResult,
+            epeConfig,
+            layoutConfig,
             fieldHalfW,
             fieldHalfH,
+            fieldIndex * diesPerField,
           );
         });
       } else {
@@ -657,14 +633,7 @@ export const useWaferStore = create<WaferState>()(
   }))
 );
 
-// RAF-based coalescing: multiple set* calls within the same frame produce one recompute
-let _rafId: number | null = null;
-function scheduleRecompute() {
-  if (_rafId !== null) return;
-  _rafId = requestAnimationFrame(() => {
-    _rafId = null;
-    useWaferStore.getState().recomputeDistortions();
-  });
-}
+// Populate initial distortion results.
+useWaferStore.getState().recomputeDistortions();
 
 export { ZERO_OVERLAY, ZERO_FIELD_TRANSFORM };

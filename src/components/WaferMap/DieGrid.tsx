@@ -1,12 +1,10 @@
 import React, { memo, useMemo } from 'react';
 import type { WaferLayoutHook } from '../../hooks/useWaferLayout';
 import { useWaferStore } from '../../store/useWaferStore';
-import type { DistortedPosition, Point } from '../../types/wafer';
 import {
   applyCornerOverlayToQuad,
   applyFieldTransformToRenderedQuad,
   computeRenderedFieldFrame,
-  projectLocalCornersInQuad,
 } from '../../utils/renderCorners';
 import { FIELD_EDIT_RENDER_SCALE } from '../../utils/fieldEditGeometry';
 
@@ -14,149 +12,100 @@ interface Props {
   layout: WaferLayoutHook;
   variant: 'interactive' | 'reference';
   clipId: string;
-  zoomScale: number;
+  zoomScale?: number;
 }
 
+const GEOMETRY_RENDER_SCALE = 1;
+
 export const DieGrid: React.FC<Props> = memo(({ layout, variant, clipId }) => {
-  const dies = useWaferStore((s) => s.dies);
-  const distortionResults = useWaferStore((s) => s.distortionResults);
   const fields = useWaferStore((s) => s.fields);
   const showDieBoundaries = useWaferStore((s) => s.viewState.showDieBoundaries);
   const layoutConfig = useWaferStore((s) => s.layoutConfig);
-  const granularity = useWaferStore((s) => s.viewState.granularity);
   const dataSource = useWaferStore((s) => s.viewState.dataSource);
   const waferDistortion = useWaferStore((s) => s.waferDistortion);
   const fieldDistortion = useWaferStore((s) => s.fieldDistortion);
   const perFieldTransformOverrides = useWaferStore((s) => s.perFieldTransformOverrides);
   const perFieldCornerOverlays = useWaferStore((s) => s.perFieldCornerOverlays);
 
-  const dieWPx = layout.pxPerUm * (layoutConfig.fieldWidthMm * 1000 / layoutConfig.diesPerFieldX);
-  const dieHPx = layout.pxPerUm * (layoutConfig.fieldHeightMm * 1000 / layoutConfig.diesPerFieldY);
-  const dieHalfWUm = (layoutConfig.fieldWidthMm * 1000) / (2 * layoutConfig.diesPerFieldX);
-  const dieHalfHUm = (layoutConfig.fieldHeightMm * 1000) / (2 * layoutConfig.diesPerFieldY);
+  const { diesPerFieldX, diesPerFieldY } = layoutConfig;
   const fieldHalfWUm = layoutConfig.fieldWidthMm * 500;
   const fieldHalfHUm = layoutConfig.fieldHeightMm * 500;
-  const isFieldLevel = granularity === 'field';
-  const isInteractive = variant === 'interactive';
-  const usePolygonDetail = isInteractive;
-
-  if (dataSource === 'imported') return null;
+  const geometryRenderScale = variant === 'interactive' ? FIELD_EDIT_RENDER_SCALE : GEOMETRY_RENDER_SCALE;
 
   const strokeColor = showDieBoundaries ? 'rgba(103,130,154,0.44)' : 'transparent';
 
-  const renderItems = useMemo(() => {
-    const distMap = new Map<string, DistortedPosition>(distortionResults.map((r) => [r.entityId, r]));
-    const fieldFrameMap = new Map(
-      fields.map((field) => [
-        field.id,
-        computeRenderedFieldFrame(
-          field.centerDesign,
-          fieldHalfWUm,
-          fieldHalfHUm,
-          waferDistortion,
-          fieldDistortion,
-          layout.toPixel,
-          FIELD_EDIT_RENDER_SCALE,
-        ),
-      ]),
-    );
+  const gridPath = useMemo(() => {
+    if (dataSource === 'imported') return '';
+    if (diesPerFieldX <= 1 && diesPerFieldY <= 1) return '';
 
-    return dies.map((die) => {
-      const result = distMap.get(die.id);
-      const [designX, designY] = layout.toPixel(die.designPos.x, die.designPos.y);
-      const fill = isFieldLevel ? 'rgba(126,146,164,0.18)' : 'rgba(88,117,145,0.22)';
+    const segments: string[] = [];
 
-      const frame = fieldFrameMap.get(die.fieldId);
-      const transformedQuad = frame
-        ? applyFieldTransformToRenderedQuad(
-          frame.cornersPx,
-          fieldHalfWUm,
-          fieldHalfHUm,
-          perFieldTransformOverrides[die.fieldId],
-          layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
-        )
-        : null;
-      const quad = transformedQuad
-        ? applyCornerOverlayToQuad(
-          transformedQuad,
-          perFieldCornerOverlays[die.fieldId],
-          layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
-        )
-        : null;
-      const localCorners: [Point, Point, Point, Point] = [
-        { x: die.localPos.x - dieHalfWUm, y: die.localPos.y + dieHalfHUm },
-        { x: die.localPos.x + dieHalfWUm, y: die.localPos.y + dieHalfHUm },
-        { x: die.localPos.x + dieHalfWUm, y: die.localPos.y - dieHalfHUm },
-        { x: die.localPos.x - dieHalfWUm, y: die.localPos.y - dieHalfHUm },
-      ];
-      const points = usePolygonDetail && quad && result?.designCorners
-        ? projectLocalCornersInQuad(quad, localCorners, fieldHalfWUm, fieldHalfHUm).map((c) => `${c[0]},${c[1]}`).join(' ')
-        : null;
+    for (const field of fields) {
+      const frame = computeRenderedFieldFrame(
+        field.centerDesign,
+        fieldHalfWUm,
+        fieldHalfHUm,
+        waferDistortion,
+        fieldDistortion,
+        layout.toPixel,
+        geometryRenderScale,
+      );
+      const transformed = applyFieldTransformToRenderedQuad(
+        frame.cornersPx,
+        fieldHalfWUm,
+        fieldHalfHUm,
+        perFieldTransformOverrides[field.id],
+        layout.pxPerUm,
+        geometryRenderScale,
+      );
+      const quad = applyCornerOverlayToQuad(
+        transformed,
+        perFieldCornerOverlays[field.id],
+        layout.pxPerUm,
+        geometryRenderScale,
+      );
+      // quad = [TL, TR, BR, BL] in pixel space
 
-      return {
-        id: die.id,
-        designX,
-        designY,
-        fill,
-        points,
-      };
-    });
+      for (let r = 1; r < diesPerFieldY; r++) {
+        const s = r / diesPerFieldY;
+        const lx = quad[0][0] + (quad[3][0] - quad[0][0]) * s;
+        const ly = quad[0][1] + (quad[3][1] - quad[0][1]) * s;
+        const rx = quad[1][0] + (quad[2][0] - quad[1][0]) * s;
+        const ry = quad[1][1] + (quad[2][1] - quad[1][1]) * s;
+        segments.push(`M${lx} ${ly}L${rx} ${ry}`);
+      }
+
+      for (let c = 1; c < diesPerFieldX; c++) {
+        const t = c / diesPerFieldX;
+        const tx = quad[0][0] + (quad[1][0] - quad[0][0]) * t;
+        const ty = quad[0][1] + (quad[1][1] - quad[0][1]) * t;
+        const bx = quad[3][0] + (quad[2][0] - quad[3][0]) * t;
+        const by = quad[3][1] + (quad[2][1] - quad[3][1]) * t;
+        segments.push(`M${tx} ${ty}L${bx} ${by}`);
+      }
+    }
+
+    return segments.join('');
   }, [
-    dies,
     fields,
-    distortionResults,
     layout,
-    isFieldLevel,
     waferDistortion,
     fieldDistortion,
     perFieldTransformOverrides,
     perFieldCornerOverlays,
     fieldHalfWUm,
     fieldHalfHUm,
-    dieHalfWUm,
-    dieHalfHUm,
+    diesPerFieldX,
+    diesPerFieldY,
+    dataSource,
+    geometryRenderScale,
   ]);
+
+  if (!gridPath) return null;
 
   return (
     <g clipPath={variant === 'reference' ? `url(#${clipId})` : undefined} style={{ pointerEvents: 'none' }}>
-      {renderItems.map((item) => {
-        if (item.points) {
-          return (
-            <polygon
-              key={item.id}
-              data-die-id={item.id}
-              points={item.points}
-              fill={item.fill}
-              stroke={strokeColor}
-              strokeWidth={0.55}
-              opacity={0.95}
-              strokeLinejoin="round"
-            />
-          );
-        }
-
-        if (variant === 'reference') {
-          return (
-            <rect
-              key={item.id}
-              data-die-id={item.id}
-              x={item.designX - dieWPx / 2}
-              y={item.designY - dieHPx / 2}
-              width={dieWPx}
-              height={dieHPx}
-              fill={item.fill}
-              stroke={strokeColor}
-              strokeWidth={0.55}
-              opacity={0.95}
-              rx={0.5}
-            />
-          );
-        }
-
-        return null;
-      })}
+      <path d={gridPath} stroke={strokeColor} strokeWidth={0.55} fill="none" opacity={0.95} />
     </g>
   );
 });

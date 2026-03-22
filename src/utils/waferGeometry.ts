@@ -1,4 +1,4 @@
-import type { WaferLayoutConfig, FieldCell, DieCell, Point } from '../types/wafer';
+import type { WaferLayoutConfig, FieldCell, Point } from '../types/wafer';
 
 function isFieldActive(cx: number, cy: number, fw: number, fh: number, R: number): boolean {
   const halfW = fw / 2;
@@ -46,30 +46,3 @@ export function generateFieldGrid(cfg: WaferLayoutConfig): FieldCell[] {
   return fields;
 }
 
-export function generateDieGrid(fields: FieldCell[], cfg: WaferLayoutConfig): DieCell[] {
-  const fw = cfg.fieldWidthMm * 1000;
-  const fh = cfg.fieldHeightMm * 1000;
-  const dw = fw / cfg.diesPerFieldX;
-  const dh = fh / cfg.diesPerFieldY;
-
-  const dies: DieCell[] = [];
-
-  for (const field of fields) {
-    for (let dr = 0; dr < cfg.diesPerFieldY; dr++) {
-      for (let dc = 0; dc < cfg.diesPerFieldX; dc++) {
-        const localX = (dc - (cfg.diesPerFieldX - 1) / 2) * dw;
-        const localY = (dr - (cfg.diesPerFieldY - 1) / 2) * dh;
-
-        dies.push({
-          id: `d_${field.col}_${field.row}_${dc}_${dr}`,
-          fieldId: field.id,
-          localPos: { x: localX, y: localY },
-          designPos: { x: field.centerDesign.x + localX, y: field.centerDesign.y + localY },
-          isActive: true,
-        });
-      }
-    }
-  }
-
-  return dies;
-}

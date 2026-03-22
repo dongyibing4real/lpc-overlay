@@ -53,14 +53,6 @@ export interface FieldCell {
   isActive: boolean;
 }
 
-export interface DieCell {
-  id: string;
-  fieldId: string;
-  localPos: Point; // Position relative to field center in um.
-  designPos: Point; // Absolute wafer position in um.
-  isActive: boolean;
-}
-
 export interface DistortedPosition {
   entityId: string;
   designPos: Point;
@@ -73,6 +65,9 @@ export interface DistortedPosition {
   // Corner displacements use [TL, TR, BR, BL] in visual order.
   cornerDx?: [number, number, number, number];
   cornerDy?: [number, number, number, number];
+  // Present on die-level results derived from fields.
+  fieldId?: string;
+  localPos?: Point;
 }
 
 export interface CornerOverlay {

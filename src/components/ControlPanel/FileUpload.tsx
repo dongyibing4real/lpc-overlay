@@ -50,7 +50,6 @@ function toCsv(rows: ExportRow[]): string {
 export const FileUpload: React.FC = () => {
   const granularity = useWaferStore((s) => s.viewState.granularity);
   const distortionResults = useWaferStore((s) => s.distortionResults);
-  const dies = useWaferStore((s) => s.dies);
   const fields = useWaferStore((s) => s.fields);
   const [exportUnit, setExportUnit] = useState<'mm' | 'nm'>('mm');
   const [status, setStatus] = useState<'idle' | 'done'>('idle');
@@ -75,21 +74,20 @@ export const FileUpload: React.FC = () => {
       });
     }
 
-    return dies.map((die) => {
-      const result = resultMap.get(die.id);
-      const field = fieldMap.get(die.fieldId);
+    return distortionResults.map((result) => {
+      const field = result.fieldId ? fieldMap.get(result.fieldId) : undefined;
       return {
-        x: die.designPos.x,
-        y: die.designPos.y,
-        xw: field?.centerDesign.x ?? die.designPos.x,
-        yw: field?.centerDesign.y ?? die.designPos.y,
-        xf: die.localPos.x,
-        yf: die.localPos.y,
-        dx: result?.dx ?? 0,
-        dy: result?.dy ?? 0,
+        x: result.designPos.x,
+        y: result.designPos.y,
+        xw: field?.centerDesign.x ?? result.designPos.x,
+        yw: field?.centerDesign.y ?? result.designPos.y,
+        xf: result.localPos?.x ?? 0,
+        yf: result.localPos?.y ?? 0,
+        dx: result.dx,
+        dy: result.dy,
       };
     });
-  }, [distortionResults, dies, fields, granularity]);
+  }, [distortionResults, fields, granularity]);
 
   const baseFilename = granularity === 'field' ? 'overlay-field-export' : 'overlay-die-export';
 

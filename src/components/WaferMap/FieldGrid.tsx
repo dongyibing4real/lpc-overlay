@@ -40,6 +40,8 @@ type HandleDragState = {
   startOverlay?: CornerOverlay;
 };
 
+const GEOMETRY_RENDER_SCALE = 1;
+
 function add(a: Vec2, b: Vec2): Vec2 {
   return [a[0] + b[0], a[1] + b[1]];
 }
@@ -196,6 +198,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
   const dragStateRef = useRef<HandleDragState | null>(null);
 
   const isInteractive = variant === 'interactive';
+  const geometryRenderScale = isInteractive ? FIELD_EDIT_RENDER_SCALE : GEOMETRY_RENDER_SCALE;
   const isDieMode = granularity === 'die';
   const usePolygonDetail = isInteractive;
   const stroke = showFieldBoundaries
@@ -219,7 +222,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
           waferDistortion,
           fieldDistortion,
           layout.toPixel,
-          FIELD_EDIT_RENDER_SCALE,
+          geometryRenderScale,
         )
         : null;
       const transformedQuad = baseFrame
@@ -229,7 +232,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
           halfHUm,
           perFieldTransformOverrides[field.id],
           layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
+          geometryRenderScale,
         )
         : null;
       const quad = transformedQuad
@@ -237,7 +240,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
           transformedQuad,
           perFieldCornerOverlays[field.id],
           layout.pxPerUm,
-          FIELD_EDIT_RENDER_SCALE,
+          geometryRenderScale,
         )
         : null;
       const points = quad ? quad.map((c) => `${c[0]},${c[1]}`).join(' ') : null;
@@ -282,6 +285,7 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
     fieldDistortion,
     perFieldTransformOverrides,
     perFieldCornerOverlays,
+    geometryRenderScale,
     isInteractive,
     selectedFieldId,
   ]);

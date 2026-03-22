@@ -14,7 +14,6 @@ export const MiniWaferMap: React.FC<Props> = memo(({ size = 124 }) => {
   const dataSource = useWaferStore((s) => s.viewState.dataSource);
   const colorMapRange = useWaferStore((s) => s.viewState.colorMapRange);
   const distortionResults = useWaferStore((s) => s.distortionResults);
-  const dies = useWaferStore((s) => s.dies);
   const fields = useWaferStore((s) => s.fields);
   const layout = useWaferLayout(innerSize, layoutConfig);
   const clipId = useId().replace(/:/g, '');
@@ -56,18 +55,16 @@ export const MiniWaferMap: React.FC<Props> = memo(({ size = 124 }) => {
       });
     }
 
-    const distMap = new Map(distortionResults.map((r) => [r.entityId, r]));
-    return dies.map((die) => {
-      const [x, y] = layout.toPixel(die.designPos.x, die.designPos.y);
-      const magnitude = distMap.get(die.id)?.magnitude ?? 0;
+    return distortionResults.map((result) => {
+      const [x, y] = layout.toPixel(result.designPos.x, result.designPos.y);
       return {
-        id: die.id,
+        id: result.entityId,
         shape: 'rect' as const,
         x,
         y,
         width: dieWPx,
         height: dieHPx,
-        color: getOverlayColorByMag(magnitude, maxMag),
+        color: getOverlayColorByMag(result.magnitude, maxMag),
       };
     });
   }, [
@@ -76,7 +73,6 @@ export const MiniWaferMap: React.FC<Props> = memo(({ size = 124 }) => {
     layout,
     granularity,
     fields,
-    dies,
     fieldWPx,
     fieldHPx,
     dieWPx,
