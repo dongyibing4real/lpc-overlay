@@ -1,5 +1,5 @@
 import type {
-  EntityOverlay,
+  CornerOverlay,
   FieldTransformOverride,
   FieldDistortionParams,
   Point,
@@ -235,7 +235,7 @@ export function applyFieldTransformToRenderedQuad(
 
 export function applyCornerOverlayToQuad(
   quad: CornerTuple<Vec2>,
-  overlay: EntityOverlay | undefined,
+  overlay: CornerOverlay | undefined,
   pxPerUm: number,
   renderScale: number,
 ): CornerTuple<Vec2> {

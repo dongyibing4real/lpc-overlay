@@ -1,8 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { memo, useRef, useEffect } from 'react';
 import { useWaferStore } from '../store/useWaferStore';
 import { getOverlayColor } from '../utils/colorScale';
 
-export const VectorLegend: React.FC = () => {
+export const VectorLegend: React.FC = memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const colorMapRange = useWaferStore((s) => s.viewState.colorMapRange);
 
@@ -35,4 +35,6 @@ export const VectorLegend: React.FC = () => {
       </div>
     </div>
   );
-};
+});
+
+VectorLegend.displayName = 'VectorLegend';

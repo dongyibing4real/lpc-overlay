@@ -39,8 +39,8 @@ app.post('/api/agent/plan', async (req, res) => {
   }
 
   try {
-    const plan = await generatePlanWithOpenAICompatible(parsed.data);
-    res.json({ plan });
+    const response = await generatePlanWithOpenAICompatible(parsed.data);
+    res.json(response);
   } catch (error) {
     res.status(500).json({
       message: error instanceof Error ? error.message : 'Unknown agent error',

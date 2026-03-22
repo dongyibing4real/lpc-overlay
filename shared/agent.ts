@@ -219,8 +219,24 @@ export const agentPlanSchema = z.object({
 });
 export type AgentPlan = z.infer<typeof agentPlanSchema>;
 
+export const agentPlanDiagnosticsSchema = z.object({
+  droppedActions: z.array(z.object({
+    index: z.number().int().nonnegative(),
+    type: z.string(),
+    reason: z.string(),
+  })).default([]),
+  rawActionCount: z.number().int().nonnegative(),
+  normalizedActionCount: z.number().int().nonnegative(),
+  finalActionCount: z.number().int().nonnegative(),
+  droppedActionCount: z.number().int().nonnegative(),
+  droppedActionTypes: z.array(z.string()).default([]),
+  warnings: z.array(z.string()).default([]),
+});
+export type AgentPlanDiagnostics = z.infer<typeof agentPlanDiagnosticsSchema>;
+
 export const agentPlanResponseSchema = z.object({
   plan: agentPlanSchema,
+  diagnostics: agentPlanDiagnosticsSchema,
 });
 export type AgentPlanResponse = z.infer<typeof agentPlanResponseSchema>;
 
@@ -240,7 +256,7 @@ export const DEFAULT_PROVIDER_DESCRIPTORS: ProviderDescriptor[] = [
     id: 'local-openai-compatible',
     label: 'Local OpenAI-Compatible',
     kind: 'local',
-    defaultBaseUrl: 'http://127.0.0.1:8000',
+    defaultBaseUrl: '',
     defaultModel: '',
     requiresApiKey: false,
   },
@@ -248,7 +264,7 @@ export const DEFAULT_PROVIDER_DESCRIPTORS: ProviderDescriptor[] = [
     id: 'remote-openai-compatible',
     label: 'Remote OpenAI-Compatible',
     kind: 'api',
-    defaultBaseUrl: 'https://api.openai.com/v1',
+    defaultBaseUrl: '',
     defaultModel: '',
     requiresApiKey: true,
   },
@@ -259,7 +275,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AgentProviderId, AgentProviderConf
     id: 'local-openai-compatible',
     kind: 'local',
     label: 'Local OpenAI-Compatible',
-    baseUrl: 'http://127.0.0.1:8000',
+    baseUrl: '',
     model: '',
     apiKey: '',
   },
@@ -267,7 +283,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AgentProviderId, AgentProviderConf
     id: 'remote-openai-compatible',
     kind: 'api',
     label: 'Remote OpenAI-Compatible',
-    baseUrl: 'https://api.openai.com/v1',
+    baseUrl: '',
     model: '',
     apiKey: '',
   },
@@ -275,8 +291,9 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AgentProviderId, AgentProviderConf
 
 export type AgentHistoryItem = {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   text: string;
   createdAt: number;
   plan?: AgentPlan;
+  diagnostics?: AgentPlanDiagnostics;
 };

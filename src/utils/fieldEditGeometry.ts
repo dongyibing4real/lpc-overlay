@@ -1,4 +1,4 @@
-import type { DieCell, DistortedPosition, EntityOverlay, FieldTransformOverride, Point } from '../types/wafer';
+import type { DieCell, DistortedPosition, CornerOverlay, FieldTransformOverride, Point } from '../types/wafer';
 
 export const FIELD_EDIT_RENDER_SCALE = 10000;
 const PPM = 1e-6;
@@ -98,7 +98,7 @@ export function isZeroFieldTransform(transform?: FieldTransformOverride): boolea
   );
 }
 
-export function isZeroOverlay(overlay?: EntityOverlay): boolean {
+export function isZeroOverlay(overlay?: CornerOverlay): boolean {
   if (!overlay) return true;
   return (
     overlay.cornerDx.every((v) => v === 0)
@@ -188,7 +188,7 @@ export function applyFieldTransformToQuadUm(
 
 export function applyCornerOverlayToQuadUm(
   quad: CornerTuplePoint,
-  overlay: EntityOverlay | undefined,
+  overlay: CornerOverlay | undefined,
 ): CornerTuplePoint {
   if (!overlay) return quad;
   return quad.map((corner, index) => ({

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { useWaferStore } from '../store/useWaferStore';
 import { computeStats } from '../utils/distortionMath';
 
@@ -15,7 +15,7 @@ const labelStyle: React.CSSProperties = {
   letterSpacing: '0.03em',
 };
 
-export const StatsSidebar: React.FC = () => {
+export const StatsSidebar: React.FC = memo(() => {
   const distortionResults = useWaferStore((s) => s.distortionResults);
   const stats = useMemo(() => computeStats(distortionResults), [distortionResults]);
 
@@ -59,4 +59,6 @@ export const StatsSidebar: React.FC = () => {
       <div style={valueStyle}>{stats.count.toLocaleString()}</div>
     </div>
   );
-};
+});
+
+StatsSidebar.displayName = 'StatsSidebar';

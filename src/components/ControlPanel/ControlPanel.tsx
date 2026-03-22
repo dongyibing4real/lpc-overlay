@@ -12,13 +12,13 @@ const CARD: React.CSSProperties = {
 };
 
 export const ControlPanel: React.FC = () => {
-  const clearEntityOverlays = useWaferStore((s) => s.clearEntityOverlays);
+  const clearCornerOverlays = useWaferStore((s) => s.clearCornerOverlays);
   const applyVectorMapShowcase = useWaferStore((s) => s.applyVectorMapShowcase);
   const resetModelState = useWaferStore((s) => s.resetModelState);
-  const perEntityOverlays = useWaferStore((s) => s.perEntityOverlays);
-  const hasOverlays = Object.keys(perEntityOverlays).length > 0;
+  const perCornerOverlays = useWaferStore((s) => s.perCornerOverlays);
+  const hasOverlays = Object.keys(perCornerOverlays).length > 0;
 
-  const handleClearOverlays = useCallback(() => clearEntityOverlays(), [clearEntityOverlays]);
+  const handleClearOverlays = useCallback(() => clearCornerOverlays(), [clearCornerOverlays]);
   const handleLoadShowcase = useCallback(() => applyVectorMapShowcase(), [applyVectorMapShowcase]);
   const handleResetModel = useCallback(() => resetModelState(), [resetModelState]);
 

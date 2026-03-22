@@ -13,6 +13,7 @@ function buildIntentInstructions(intent: AgentIntent): string {
     'You are planning changes to the current wafer overlay scene.',
     'Prefer the minimum set of actions needed to satisfy the request.',
     'When the user asks for stronger, softer, more centered, more regular, or different granularity, express that through structured actions.',
+    'When the request affects multiple fields, return multiple field actions, one per field.',
   ].join(' ');
 }
 
@@ -25,7 +26,7 @@ function buildTemplateInstructions(templateId: AgentPromptTemplateId): string {
     case 'generate-report':
       return 'Template: Produce a concise report-style response about the current scene, including dominant effects, readability, and useful next adjustments.';
     default:
-      return 'Template: Use the user request directly and choose the most appropriate response within the current scene context.';
+      return 'Template: Use the user request directly. If you propose state changes, every action must exactly match one supported action schema. If you are unsure, return actions: [].';
   }
 }
 
@@ -61,13 +62,23 @@ export function buildAgentSystemPrompt(request: AgentRequest): string {
       set_wafer_distortion: { type: 'set_wafer_distortion', patch: { Tx: 120, Ty: -80 } },
       set_field_distortion: { type: 'set_field_distortion', patch: { FTx: -40, FSx: 1.2 } },
       set_view_state: { type: 'set_view_state', patch: { granularity: 'die', arrowScaleFactor: 52000, colorMapRange: [0, 320] } },
-      set_field_transform: { type: 'set_field_transform', fieldId: 'f_0_0', patch: { Tx: 80, theta: 0.8 } },
-      set_field_corner_overlay: { type: 'set_field_corner_overlay', fieldId: 'f_0_0', overlay: { cornerDx: [120, 40, -120, -30], cornerDy: [80, -20, -80, 25] } },
+      set_field_transform: { type: 'set_field_transform', fieldId: 'f_-1_0', patch: { Tx: 80, theta: 0.8 } },
+      set_field_corner_overlay: { type: 'set_field_corner_overlay', fieldId: 'f_1_0', overlay: { cornerDx: [120, 40, -120, -30], cornerDy: [80, -20, -80, 25] } },
       select_field: { type: 'select_field', fieldId: 'f_0_0' },
       reset_model: { type: 'reset_model' },
     }),
+    'Multi-field example:',
+    JSON.stringify({
+      actions: [
+        { type: 'set_field_transform', fieldId: 'f_-1_0', patch: { Tx: 90, Ty: -30, theta: 0.7 } },
+        { type: 'set_field_transform', fieldId: 'f_0_0', patch: { Tx: 55, Ty: 20, theta: 0.35 } },
+        { type: 'set_field_corner_overlay', fieldId: 'f_1_0', overlay: { cornerDx: [90, 20, -90, -18], cornerDy: [60, -12, -60, 16] } },
+      ],
+    }),
     'Never invent field ids outside scene.editableFieldIds.',
     'Stay within scene.limits.',
+    'You may return many set_field_transform and set_field_corner_overlay actions in one plan.',
+    'select_field only changes UI focus. Do not use select_field as a substitute for editing multiple fields.',
     'For analysis intent, return actions: [] unless the prompt clearly asks for a modification.',
   ].join('\n');
 }

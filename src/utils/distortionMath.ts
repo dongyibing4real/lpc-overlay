@@ -177,25 +177,34 @@ export function computeDieDistortion(
 
   const cornerDx = [0, 0, 0, 0] as [number, number, number, number];
   const cornerDy = [0, 0, 0, 0] as [number, number, number, number];
-  const designCorners = buildCorners(die.designPos, dieHalfW, dieHalfH);
-  const distortedCorners = [] as Point[];
+  const dx0 = die.designPos.x;
+  const dy0 = die.designPos.y;
+  const lx0 = die.localPos.x;
+  const ly0 = die.localPos.y;
+  const designCorners: [Point, Point, Point, Point] = [
+    { x: dx0 - dieHalfW, y: dy0 + dieHalfH },
+    { x: dx0 + dieHalfW, y: dy0 + dieHalfH },
+    { x: dx0 + dieHalfW, y: dy0 - dieHalfH },
+    { x: dx0 - dieHalfW, y: dy0 - dieHalfH },
+  ];
+  const distortedCorners = [designCorners[0], designCorners[1], designCorners[2], designCorners[3]] as [Point, Point, Point, Point];
 
   for (let i = 0; i < 4; i += 1) {
     const ox = CORNER_SIGNS[i][0] * dieHalfW;
     const oy = CORNER_SIGNS[i][1] * dieHalfH;
-    const [cdx, cdy] = overlayNmAt(
-      { x: die.designPos.x + ox, y: die.designPos.y + oy },
-      { x: die.localPos.x + ox, y: die.localPos.y + oy },
-      waferParams,
-      fieldParams,
-    );
+    const absCorner = { x: dx0 + ox, y: dy0 + oy };
+    const localCorner = { x: lx0 + ox, y: ly0 + oy };
+    const wt = applyWaferTransform(absCorner, waferParams);
+    const ft = applyFieldTransform(localCorner, fieldParams);
+    const cdx = (wt.x - absCorner.x + ft.x - localCorner.x) * 1e3 + epeX * 1e3;
+    const cdy = (wt.y - absCorner.y + ft.y - localCorner.y) * 1e3 + epeY * 1e3;
 
-    cornerDx[i] = cdx + epeX * 1e3;
-    cornerDy[i] = cdy + epeY * 1e3;
-    distortedCorners.push({
-      x: designCorners[i].x + cornerDx[i] * NM_TO_UM,
-      y: designCorners[i].y + cornerDy[i] * NM_TO_UM,
-    });
+    cornerDx[i] = cdx;
+    cornerDy[i] = cdy;
+    distortedCorners[i] = {
+      x: designCorners[i].x + cdx * NM_TO_UM,
+      y: designCorners[i].y + cdy * NM_TO_UM,
+    };
   }
 
   return {
@@ -260,6 +269,29 @@ export function computeFieldDistortion(
   };
 }
 
+// O(N) average-case selection; avoids full sort for P99/max
+function quickselect(arr: number[], k: number): number {
+  let lo = 0;
+  let hi = arr.length - 1;
+  while (lo < hi) {
+    const pivot = arr[(lo + hi) >> 1];
+    let i = lo;
+    let j = hi;
+    while (i <= j) {
+      while (arr[i] < pivot) i++;
+      while (arr[j] > pivot) j--;
+      if (i <= j) {
+        const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        i++; j--;
+      }
+    }
+    if (k <= j) hi = j;
+    else if (k >= i) lo = i;
+    else break;
+  }
+  return arr[k];
+}
+
 export function computeStats(results: DistortedPosition[]): OverlayStats | null {
   const n = results.length;
   if (n === 0) return null;
@@ -269,15 +301,20 @@ export function computeStats(results: DistortedPosition[]): OverlayStats | null 
   const stdDx = Math.sqrt(results.reduce((s, r) => s + (r.dx - meanDx) ** 2, 0) / n);
   const stdDy = Math.sqrt(results.reduce((s, r) => s + (r.dy - meanDy) ** 2, 0) / n);
 
-  const mags = results.map((r) => r.magnitude).sort((a, b) => a - b);
-  const p99 = mags[Math.max(0, Math.floor(n * 0.99) - 1)];
+  const mags = results.map((r) => r.magnitude);
+  let maxMag = mags[0];
+  for (let i = 1; i < n; i++) {
+    if (mags[i] > maxMag) maxMag = mags[i];
+  }
+  const p99Index = Math.max(0, Math.floor(n * 0.99) - 1);
+  const p99 = quickselect(mags, p99Index);
 
   return {
     meanDx,
     meanDy,
     stdDx,
     stdDy,
-    maxMagnitude: mags[n - 1],
+    maxMagnitude: maxMag,
     p99Magnitude: p99,
     count: n,
   };

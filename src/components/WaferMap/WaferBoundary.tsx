@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useWaferStore } from '../../store/useWaferStore';
 import type { WaferLayoutHook } from '../../hooks/useWaferLayout';
 
@@ -7,7 +7,7 @@ interface Props {
   clipId: string;
 }
 
-export const WaferBoundary: React.FC<Props> = ({ layout, clipId }) => {
+export const WaferBoundary: React.FC<Props> = memo(({ layout, clipId }) => {
   const { centerPx: cx, waferRadiusPx: R } = layout;
   const layoutConfig = useWaferStore((s) => s.layoutConfig);
 
@@ -56,4 +56,6 @@ export const WaferBoundary: React.FC<Props> = ({ layout, clipId }) => {
       <circle cx={cx} cy={cx} r={1.2} fill="rgba(114,134,153,0.4)" />
     </g>
   );
-};
+});
+
+WaferBoundary.displayName = 'WaferBoundary';

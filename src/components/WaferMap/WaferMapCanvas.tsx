@@ -17,11 +17,11 @@ interface Props {
 }
 
 export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
-  const FLOATING_PANEL_WIDTH = 212;
   const FLOATING_PANEL_TOP = 56;
   const FLOATING_PANEL_MARGIN = 12;
   const FLOATING_PANEL_FALLBACK_HEIGHT = 248;
   const containerRef = useRef<HTMLDivElement>(null);
+  const fieldPanelWrapperRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomGroupRef = useRef<SVGGElement>(null);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -31,18 +31,33 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
   const [fieldPanelPos, setFieldPanelPos] = useState<{ x: number; y: number } | null>(null);
   const [isFieldPanelAuto, setIsFieldPanelAuto] = useState(true);
   const layoutConfig = useWaferStore((s) => s.layoutConfig);
-  const waferDistortion = useWaferStore((s) => s.waferDistortion);
-  const fieldDistortion = useWaferStore((s) => s.fieldDistortion);
   const granularity = useWaferStore((s) => s.viewState.granularity);
   const selectField = useWaferStore((s) => s.selectField);
   const selectedFieldId = useWaferStore((s) => s.selectedFieldId);
-  const selectedFieldTransform = useWaferStore((s) => (s.selectedFieldId ? s.perFieldTransformOverrides[s.selectedFieldId] ?? null : null));
-  const selectedFieldCornerOverlay = useWaferStore((s) => (s.selectedFieldId ? s.perFieldCornerOverlays[s.selectedFieldId] ?? null : null));
   const resetModelState = useWaferStore((s) => s.resetModelState);
   const layout = useWaferLayout(canvasSize, layoutConfig);
   const isInteractive = variant === 'interactive';
 
   const clipId = `wafer-clip-${variant}`;
+
+  const clampFieldPanelPosition = (
+    position: { x: number; y: number },
+    containerRect: DOMRect,
+    panelRect?: DOMRect | null,
+  ) => {
+    const panelWidth = panelRect?.width ?? 212;
+    const panelHeight = panelRect?.height ?? FLOATING_PANEL_FALLBACK_HEIGHT;
+    return {
+      x: Math.min(
+        Math.max(FLOATING_PANEL_MARGIN, position.x),
+        Math.max(FLOATING_PANEL_MARGIN, containerRect.width - panelWidth - FLOATING_PANEL_MARGIN),
+      ),
+      y: Math.min(
+        Math.max(FLOATING_PANEL_TOP, position.y),
+        Math.max(FLOATING_PANEL_TOP, containerRect.height - panelHeight - FLOATING_PANEL_MARGIN),
+      ),
+    };
+  };
 
   useEffect(() => {
     const el = containerRef.current;
@@ -74,15 +89,23 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
 
     const updateAutoPosition = () => {
       const fieldEl = containerEl.querySelector(`[data-field-id="${selectedFieldId}"]`) as SVGGraphicsElement | null;
-      const panelEl = containerEl.querySelector('[data-field-edit-panel="true"]') as HTMLDivElement | null;
+      const panelEl = fieldPanelWrapperRef.current;
       const containerRect = containerEl.getBoundingClientRect();
+      const panelRect = panelEl?.getBoundingClientRect();
+      const panelWidth = panelRect?.width ?? 212;
       const panelHeight = panelEl?.getBoundingClientRect().height ?? FLOATING_PANEL_FALLBACK_HEIGHT;
 
       if (!fieldEl) {
-        setFieldPanelPos({
-          x: Math.max(FLOATING_PANEL_MARGIN, containerRect.width - FLOATING_PANEL_WIDTH - FLOATING_PANEL_MARGIN),
-          y: FLOATING_PANEL_TOP,
-        });
+        setFieldPanelPos(
+          clampFieldPanelPosition(
+            {
+              x: Math.max(FLOATING_PANEL_MARGIN, containerRect.width - panelWidth - FLOATING_PANEL_MARGIN),
+              y: FLOATING_PANEL_TOP,
+            },
+            containerRect,
+            panelRect,
+          ),
+        );
         return;
       }
 
@@ -96,12 +119,12 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
       const placeTop = fieldCenterY <= waferCenterY;
       const nextX = placeLeft
         ? FLOATING_PANEL_MARGIN
-        : Math.max(FLOATING_PANEL_MARGIN, containerRect.width - FLOATING_PANEL_WIDTH - FLOATING_PANEL_MARGIN);
+        : Math.max(FLOATING_PANEL_MARGIN, containerRect.width - panelWidth - FLOATING_PANEL_MARGIN);
       const nextY = placeTop
         ? FLOATING_PANEL_TOP
         : Math.max(FLOATING_PANEL_TOP, containerRect.height - panelHeight - FLOATING_PANEL_MARGIN);
 
-      setFieldPanelPos({ x: nextX, y: nextY });
+      setFieldPanelPos(clampFieldPanelPosition({ x: nextX, y: nextY }, containerRect, panelRect));
     };
 
     const frame = requestAnimationFrame(updateAutoPosition);
@@ -110,45 +133,40 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
     isFieldPanelAuto,
     isInteractive,
     selectedFieldId,
-    selectedFieldTransform,
-    selectedFieldCornerOverlay,
-    waferDistortion,
-    fieldDistortion,
-    layoutConfig,
     granularity,
     zoomScale,
   ]);
 
-  useEffect(() => {
+  const startPanelDragListeners = () => {
     const handlePointerMove = (event: PointerEvent) => {
       const drag = dragPanelRef.current;
       const el = containerRef.current;
       if (!drag || !el) return;
       const rect = el.getBoundingClientRect();
-      const nextX = Math.min(
-        Math.max(FLOATING_PANEL_MARGIN, event.clientX - rect.left - drag.offsetX),
-        Math.max(FLOATING_PANEL_MARGIN, rect.width - FLOATING_PANEL_WIDTH - FLOATING_PANEL_MARGIN),
+      const panelRect = fieldPanelWrapperRef.current?.getBoundingClientRect();
+      setFieldPanelPos(
+        clampFieldPanelPosition(
+          {
+            x: event.clientX - rect.left - drag.offsetX,
+            y: event.clientY - rect.top - drag.offsetY,
+          },
+          rect,
+          panelRect,
+        ),
       );
-      const nextY = Math.min(
-        Math.max(48, event.clientY - rect.top - drag.offsetY),
-        Math.max(48, rect.height - 72),
-      );
-      setFieldPanelPos({ x: nextX, y: nextY });
     };
 
     const handlePointerUp = (event: PointerEvent) => {
       if (dragPanelRef.current?.pointerId === event.pointerId) {
         dragPanelRef.current = null;
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
       }
     };
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, []);
+  };
 
   useEffect(() => {
     if (!svgRef.current || !zoomGroupRef.current) return;
@@ -226,6 +244,7 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
       offsetX: event.clientX - rect.left,
       offsetY: event.clientY - rect.top,
     };
+    startPanelDragListeners();
   };
 
   const handleResetFieldPanelPosition = () => {
@@ -415,28 +434,25 @@ export const WaferMapCanvas: React.FC<Props> = ({ variant, title }) => {
           </button>
         </div>
 
-        {isInteractive && (
-          <>
-            {selectedFieldId && (
-              <div
-                data-no-zoom="true"
-                style={{
-                  position: 'absolute',
-                  top: fieldPanelPos?.y ?? FLOATING_PANEL_TOP,
-                  left: fieldPanelPos?.x ?? FLOATING_PANEL_MARGIN,
-                  zIndex: 4,
-                  maxHeight: 'calc(100% - 68px)',
-                  overflowY: 'auto',
-                }}
-              >
-                <FieldEditPanel
-                  floating
-                  onHeaderPointerDown={handleFieldPanelHeaderPointerDown}
-                  onResetPosition={handleResetFieldPanelPosition}
-                />
-              </div>
-            )}
-          </>
+        {isInteractive && selectedFieldId && (
+          <div
+            ref={fieldPanelWrapperRef}
+            data-no-zoom="true"
+            style={{
+              position: 'absolute',
+              top: fieldPanelPos?.y ?? FLOATING_PANEL_TOP,
+              left: fieldPanelPos?.x ?? FLOATING_PANEL_MARGIN,
+              zIndex: 4,
+              maxHeight: 'calc(100% - 68px)',
+              overflowY: 'auto',
+            }}
+          >
+            <FieldEditPanel
+              floating
+              onHeaderPointerDown={handleFieldPanelHeaderPointerDown}
+              onResetPosition={handleResetFieldPanelPosition}
+            />
+          </div>
         )}
 
         {!isInteractive && <StatsSidebar />}

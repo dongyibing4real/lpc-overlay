@@ -10,7 +10,7 @@ import type {
   DistortedPosition,
   FieldCell,
   DieCell,
-  EntityOverlay,
+  CornerOverlay,
   FieldTransformOverride,
   WaferSceneSnapshot,
 } from '../types/wafer';
@@ -64,7 +64,7 @@ const DEFAULT_VIEW: ViewState = {
   colorMapRange: [0, 1000],
 };
 
-const ZERO_OVERLAY: EntityOverlay = {
+const ZERO_OVERLAY: CornerOverlay = {
   cornerDx: [0, 0, 0, 0],
   cornerDy: [0, 0, 0, 0],
 };
@@ -121,7 +121,7 @@ function createDefaultSceneSnapshot(): WaferSceneSnapshot {
     epeConfig: DEFAULT_EPE,
     viewState: DEFAULT_VIEW,
     importedData: null,
-    perEntityOverlays: {},
+    perCornerOverlays: {},
     selectedFieldId: null,
     perFieldTransformOverrides: {},
     perFieldCornerOverlays: {},
@@ -154,8 +154,8 @@ function createShowcaseFieldTransforms(): Record<string, FieldTransformOverride>
   return Object.fromEntries(entries);
 }
 
-function createShowcaseFieldCorners(): Record<string, EntityOverlay> {
-  const entries: Array<[string, EntityOverlay]> = [];
+function createShowcaseFieldCorners(): Record<string, CornerOverlay> {
+  const entries: Array<[string, CornerOverlay]> = [];
 
   for (let row = -2; row <= 2; row += 1) {
     for (let col = -2; col <= 2; col += 1) {
@@ -197,7 +197,7 @@ function getResultQuad(result: DistortedPosition) {
   throw new Error(`Result ${result.entityId} is missing corner geometry`);
 }
 
-function applyOverlayToResult(result: DistortedPosition, overlay?: EntityOverlay): DistortedPosition {
+function applyOverlayToResult(result: DistortedPosition, overlay?: CornerOverlay): DistortedPosition {
   if (!overlay) return result;
 
   const baseCdx = result.cornerDx ?? [result.dx, result.dx, result.dx, result.dx];
@@ -235,7 +235,7 @@ function applyOverlayToResult(result: DistortedPosition, overlay?: EntityOverlay
   };
 }
 
-function removeOverlayFromResult(result: DistortedPosition, overlay?: EntityOverlay): DistortedPosition {
+function removeOverlayFromResult(result: DistortedPosition, overlay?: CornerOverlay): DistortedPosition {
   if (!overlay) return result;
 
   const baseCdx = result.cornerDx ?? [result.dx, result.dx, result.dx, result.dx];
@@ -285,10 +285,10 @@ interface WaferState {
   dies: DieCell[];
   distortionResults: DistortedPosition[];
   importedData: OverlayRecord[] | null;
-  perEntityOverlays: Record<string, EntityOverlay>;
+  perCornerOverlays: Record<string, CornerOverlay>;
   selectedFieldId: string | null;
   perFieldTransformOverrides: Record<string, FieldTransformOverride>;
-  perFieldCornerOverlays: Record<string, EntityOverlay>;
+  perFieldCornerOverlays: Record<string, CornerOverlay>;
 
   setLayoutConfig: (cfg: Partial<WaferLayoutConfig>) => void;
   setWaferDistortion: (params: Partial<WaferDistortionParams>) => void;
@@ -297,12 +297,12 @@ interface WaferState {
   setViewState: (vs: Partial<ViewState>) => void;
   setImportedData: (data: OverlayRecord[]) => void;
   clearImportedData: () => void;
-  setEntityOverlay: (id: string, overlay: EntityOverlay) => void;
-  clearEntityOverlays: () => void;
+  setCornerOverlay: (id: string, overlay: CornerOverlay) => void;
+  clearCornerOverlays: () => void;
   selectField: (id: string | null) => void;
   setFieldTransformOverride: (id: string, patch: Partial<FieldTransformOverride>) => void;
   resetFieldTransformOverride: (id: string) => void;
-  setFieldCornerOverlay: (id: string, overlay: EntityOverlay) => void;
+  setFieldCornerOverlay: (id: string, overlay: CornerOverlay) => void;
   resetFieldCornerOverlay: (id: string) => void;
   resetModelState: () => void;
   applyVectorMapShowcase: () => void;
@@ -336,10 +336,10 @@ export const useWaferStore = create<WaferState>()(
     dies: initialDies,
     distortionResults: initialResults,
     importedData: null,
-    perEntityOverlays: {} as Record<string, EntityOverlay>,
+    perCornerOverlays: {} as Record<string, CornerOverlay>,
     selectedFieldId: null,
     perFieldTransformOverrides: {} as Record<string, FieldTransformOverride>,
-    perFieldCornerOverlays: {} as Record<string, EntityOverlay>,
+    perFieldCornerOverlays: {} as Record<string, CornerOverlay>,
 
     setLayoutConfig(cfg) {
       set((s) => { Object.assign(s.layoutConfig, cfg); });
@@ -348,23 +348,23 @@ export const useWaferStore = create<WaferState>()(
 
     setWaferDistortion(params) {
       set((s) => { Object.assign(s.waferDistortion, params); });
-      get().recomputeDistortions();
+      scheduleRecompute();
     },
 
     setFieldDistortion(params) {
       set((s) => { Object.assign(s.fieldDistortion, params); });
-      get().recomputeDistortions();
+      scheduleRecompute();
     },
 
     setEPEConfig(cfg) {
       set((s) => { Object.assign(s.epeConfig, cfg); });
-      get().recomputeDistortions();
+      scheduleRecompute();
     },
 
     setViewState(vs) {
       set((s) => { Object.assign(s.viewState, vs); });
       if (vs.granularity !== undefined) {
-        get().recomputeDistortions();
+        scheduleRecompute();
       }
     },
 
@@ -391,10 +391,10 @@ export const useWaferStore = create<WaferState>()(
       get().recomputeDistortions();
     },
 
-    setEntityOverlay(id, overlay) {
+    setCornerOverlay(id, overlay) {
       set((s) => {
-        const prevOverlay = s.perEntityOverlays[id];
-        s.perEntityOverlays[id] = overlay;
+        const prevOverlay = s.perCornerOverlays[id];
+        s.perCornerOverlays[id] = overlay;
         const idx = s.distortionResults.findIndex((r) => r.entityId === id);
         if (idx !== -1) {
           const baseResult = removeOverlayFromResult(s.distortionResults[idx], prevOverlay);
@@ -403,9 +403,9 @@ export const useWaferStore = create<WaferState>()(
       });
     },
 
-    clearEntityOverlays() {
+    clearCornerOverlays() {
       set((s) => {
-        Object.keys(s.perEntityOverlays).forEach((k) => delete s.perEntityOverlays[k]);
+        Object.keys(s.perCornerOverlays).forEach((k) => delete s.perCornerOverlays[k]);
       });
       get().recomputeDistortions();
     },
@@ -426,7 +426,7 @@ export const useWaferStore = create<WaferState>()(
           s.perFieldTransformOverrides[id] = next;
         }
       });
-      get().recomputeDistortions();
+      scheduleRecompute();
     },
 
     resetFieldTransformOverride(id) {
@@ -444,7 +444,7 @@ export const useWaferStore = create<WaferState>()(
           s.perFieldCornerOverlays[id] = overlay;
         }
       });
-      get().recomputeDistortions();
+      scheduleRecompute();
     },
 
     resetFieldCornerOverlay(id) {
@@ -470,7 +470,7 @@ export const useWaferStore = create<WaferState>()(
       ) as Record<string, FieldTransformOverride>;
       const cornerOverrides = Object.fromEntries(
         Object.entries(showcaseFieldCorners).filter(([fieldId]) => fieldIdSet.has(fieldId)),
-      ) as Record<string, EntityOverlay>;
+      ) as Record<string, CornerOverlay>;
 
       set((s) => {
         s.layoutConfig = layoutConfig;
@@ -484,7 +484,7 @@ export const useWaferStore = create<WaferState>()(
           ...SHOWCASE_VIEW,
         };
         s.importedData = null;
-        s.perEntityOverlays = {};
+        s.perCornerOverlays = {};
         s.selectedFieldId = fieldIdSet.has('f_0_0') ? 'f_0_0' : null;
         s.perFieldTransformOverrides = transformOverrides;
         s.perFieldCornerOverlays = cornerOverrides;
@@ -504,7 +504,7 @@ export const useWaferStore = create<WaferState>()(
         epeConfig,
         viewState,
         importedData,
-        perEntityOverlays,
+        perCornerOverlays,
         selectedFieldId,
         perFieldTransformOverrides,
         perFieldCornerOverlays,
@@ -517,7 +517,7 @@ export const useWaferStore = create<WaferState>()(
         epeConfig,
         viewState,
         importedData,
-        perEntityOverlays,
+        perCornerOverlays,
         selectedFieldId,
         perFieldTransformOverrides,
         perFieldCornerOverlays,
@@ -534,12 +534,12 @@ export const useWaferStore = create<WaferState>()(
         s.layoutConfig = layoutConfig;
         s.fields = fields;
         s.dies = dies;
-        s.waferDistortion = structuredClone(snapshot.waferDistortion);
-        s.fieldDistortion = structuredClone(snapshot.fieldDistortion);
-        s.epeConfig = structuredClone(snapshot.epeConfig);
-        s.viewState = structuredClone(snapshot.viewState);
-        s.importedData = structuredClone(snapshot.importedData);
-        s.perEntityOverlays = structuredClone(snapshot.perEntityOverlays);
+        s.waferDistortion = { ...snapshot.waferDistortion };
+        s.fieldDistortion = { ...snapshot.fieldDistortion };
+        s.epeConfig = { ...snapshot.epeConfig };
+        s.viewState = { ...snapshot.viewState, colorMapRange: [...snapshot.viewState.colorMapRange] as [number, number] };
+        s.importedData = snapshot.importedData ? structuredClone(snapshot.importedData) : null;
+        s.perCornerOverlays = structuredClone(snapshot.perCornerOverlays);
         s.selectedFieldId = snapshot.selectedFieldId && fieldIdSet.has(snapshot.selectedFieldId)
           ? snapshot.selectedFieldId
           : null;
@@ -575,7 +575,7 @@ export const useWaferStore = create<WaferState>()(
         epeConfig,
         viewState,
         importedData,
-        perEntityOverlays,
+        perCornerOverlays,
         perFieldTransformOverrides,
         perFieldCornerOverlays,
       } = get();
@@ -647,9 +647,9 @@ export const useWaferStore = create<WaferState>()(
       }
 
       // Apply per-entity corner overlays on top of parametric results
-      const overlayKeys = Object.keys(perEntityOverlays);
+      const overlayKeys = Object.keys(perCornerOverlays);
       if (overlayKeys.length > 0) {
-        results = results.map((r) => applyOverlayToResult(r, perEntityOverlays[r.entityId]));
+        results = results.map((r) => applyOverlayToResult(r, perCornerOverlays[r.entityId]));
       }
 
       set((s) => { s.distortionResults = results; });
@@ -657,4 +657,14 @@ export const useWaferStore = create<WaferState>()(
   }))
 );
 
-export { ZERO_OVERLAY };
+// RAF-based coalescing: multiple set* calls within the same frame produce one recompute
+let _rafId: number | null = null;
+function scheduleRecompute() {
+  if (_rafId !== null) return;
+  _rafId = requestAnimationFrame(() => {
+    _rafId = null;
+    useWaferStore.getState().recomputeDistortions();
+  });
+}
+
+export { ZERO_OVERLAY, ZERO_FIELD_TRANSFORM };

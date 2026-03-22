@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useWaferStore } from '../store/useWaferStore';
 import { VectorLegend } from './VectorLegend';
 import { FileUpload } from './ControlPanel/FileUpload';
@@ -11,7 +11,7 @@ const CARD: React.CSSProperties = {
   boxShadow: 'var(--panel-shadow)',
 };
 
-export const DisplayPanel: React.FC = () => {
+export const DisplayPanel: React.FC = memo(() => {
   const setViewState = useWaferStore((s) => s.setViewState);
   const viewState = useWaferStore((s) => s.viewState);
 
@@ -87,4 +87,6 @@ export const DisplayPanel: React.FC = () => {
       <FileUpload />
     </div>
   );
-};
+});
+
+DisplayPanel.displayName = 'DisplayPanel';

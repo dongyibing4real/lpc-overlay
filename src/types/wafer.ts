@@ -75,7 +75,7 @@ export interface DistortedPosition {
   cornerDy?: [number, number, number, number];
 }
 
-export interface EntityOverlay {
+export interface CornerOverlay {
   // Per-corner offsets in nm, added on top of parametric distortion.
   cornerDx: [number, number, number, number];
   cornerDy: [number, number, number, number];
@@ -127,8 +127,8 @@ export interface WaferSceneSnapshot {
   epeConfig: EPEConfig;
   viewState: ViewState;
   importedData: OverlayRecord[] | null;
-  perEntityOverlays: Record<string, EntityOverlay>;
+  perCornerOverlays: Record<string, CornerOverlay>;
   selectedFieldId: string | null;
   perFieldTransformOverrides: Record<string, FieldTransformOverride>;
-  perFieldCornerOverlays: Record<string, EntityOverlay>;
+  perFieldCornerOverlays: Record<string, CornerOverlay>;
 }
