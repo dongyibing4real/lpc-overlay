@@ -10,7 +10,8 @@
     "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "showcase:gifs": "node scripts/generate-showcases.mjs"
+    "showcase:gifs": "node scripts/generate-showcases.mjs",
+    "showcase:video": "node scripts/record-readme-workflow.mjs"
   },
   "dependencies": {
     "@use-gesture/react": "^10.3.1",

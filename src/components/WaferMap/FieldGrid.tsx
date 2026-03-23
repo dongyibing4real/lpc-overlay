@@ -503,6 +503,8 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
                         <line
                           key={`${item.id}-${edge.key}`}
                           data-editor-handle="true"
+                          data-editor-handle-key={edge.key}
+                          data-editor-handle-field={item.id}
                           x1={edge.from[0]}
                           y1={edge.from[1]}
                           x2={edge.to[0]}
@@ -529,6 +531,8 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
                       <g key={`${item.id}-${handle.key}`}>
                         <circle
                           data-editor-handle="true"
+                          data-editor-handle-key={handle.key}
+                          data-editor-handle-field={item.id}
                           cx={handle.center[0]}
                           cy={handle.center[1]}
                           r={handle.mode === 'rotate' ? 22 : (handle.mode === 'scale-uniform' ? 16 : 12)}
@@ -567,6 +571,8 @@ export const FieldGrid: React.FC<Props> = memo(({ layout, variant, clipId, zoomS
                     <g key={`${item.id}-corner-${index}`}>
                       <circle
                         data-editor-handle="true"
+                        data-editor-handle-key={`corner-${index}`}
+                        data-editor-handle-field={item.id}
                         cx={corner[0]}
                         cy={corner[1]}
                         r={11}

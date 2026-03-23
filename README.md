@@ -15,6 +15,12 @@ LPC is a browser-based visual sandbox for teams who need realistic wafer overlay
 
 ## See It In Action
 
+### Workflow video
+
+<video src="./docs/readme/showcase-workflow.webm" controls muted loop playsinline width="100%"></video>
+
+Direct file: [showcase-workflow.webm](./docs/readme/showcase-workflow.webm)
+
 ### Agent workflow
 
 ![LPC Overlay agent workflow showcase](./docs/readme/showcase-agent.gif)
