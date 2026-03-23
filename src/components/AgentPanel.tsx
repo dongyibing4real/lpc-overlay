@@ -94,7 +94,7 @@ function clampPanelPosition(x: number, y: number, viewport: { width: number; hei
 }
 
 function getDefaultFabPosition(viewport: { width: number; height: number }) {
-  return clampFabPosition(viewport.width - FAB_WIDTH - FLOAT_MARGIN - 26, 92, viewport);
+  return clampFabPosition(viewport.width - FAB_WIDTH - FLOAT_MARGIN - 26, viewport.height - FAB_HEIGHT - FLOAT_MARGIN - 16, viewport);
 }
 
 function getPanelPositionFromFab(fabPosition: { x: number; y: number }, viewport: { width: number; height: number }, panelSize: PanelSize) {
