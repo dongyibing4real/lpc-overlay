@@ -28,3 +28,4 @@ dist-ssr
 .codex/
 .codex-snapshots/
 THREAD_SUMMARY.md
+.gstack/

@@ -3,8 +3,8 @@ import { useWaferStore } from '../../store/useWaferStore';
 import { NumericControlRow } from '../common/NumericControlRow';
 
 const CARD: React.CSSProperties = {
-  background: 'var(--panel-bg)',
-  borderRadius: 14,
+  background: 'linear-gradient(180deg, rgba(238, 250, 247, 0.98) 0%, rgba(248, 252, 251, 0.98) 100%)',
+  borderRadius: 16,
   border: '1px solid var(--panel-border)',
   boxShadow: 'var(--panel-shadow)',
 };
@@ -41,15 +41,15 @@ export const WaferLayoutParams: React.FC = memo(() => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '12px 14px',
+          padding: '13px 14px',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 3, height: 15, background: '#2f8f83', borderRadius: 99, flexShrink: 0 }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#2f6f76', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ width: 4, height: 18, background: '#269989', borderRadius: 99, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#1d6d69', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
             Wafer Layout
           </span>
         </div>
@@ -57,8 +57,8 @@ export const WaferLayoutParams: React.FC = memo(() => {
       </button>
 
       {isOpen && (
-        <div style={{ padding: '0 14px 13px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ height: 1, background: 'var(--line)', marginBottom: 4 }} />
+        <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <div style={{ height: 1, background: 'rgba(121, 171, 163, 0.24)', marginBottom: 6 }} />
           <NumericControlRow label="Diameter" value={layoutConfig.waferDiameterMm} min={100} max={450} step={1} unit="mm" onChange={(v) => debouncedSet({ waferDiameterMm: v })} displayPrecision={2} />
           <NumericControlRow label="Edge Exclusion" value={layoutConfig.edgeExclusionMm} min={0} max={10} step={0.5} unit="mm" onChange={(v) => debouncedSet({ edgeExclusionMm: v })} displayPrecision={2} />
           <NumericControlRow label="Field Width" value={layoutConfig.fieldWidthMm} min={5} max={50} step={0.5} unit="mm" onChange={(v) => debouncedSet({ fieldWidthMm: v })} displayPrecision={2} />

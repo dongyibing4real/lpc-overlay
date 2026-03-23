@@ -29,6 +29,56 @@ function easeInOut(progress) {
   return 0.5 - Math.cos(progress * Math.PI) / 2;
 }
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeClip(clip) {
+  const x = clamp(Math.floor(clip.x), 0, VIEWPORT.width - 1);
+  const y = clamp(Math.floor(clip.y), 0, VIEWPORT.height - 1);
+  const width = clamp(Math.ceil(clip.width), 1, VIEWPORT.width - x);
+  const height = clamp(Math.ceil(clip.height), 1, VIEWPORT.height - y);
+  return { x, y, width, height };
+}
+
+async function getUnionClip(page, selectors, padding = { top: 20, right: 20, bottom: 20, left: 20 }) {
+  const boxes = [];
+  for (const selector of selectors) {
+    const box = await page.locator(selector).boundingBox();
+    if (box) boxes.push(box);
+  }
+
+  if (boxes.length === 0) {
+    return { x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height };
+  }
+
+  const left = Math.min(...boxes.map((box) => box.x)) - padding.left;
+  const top = Math.min(...boxes.map((box) => box.y)) - padding.top;
+  const right = Math.max(...boxes.map((box) => box.x + box.width)) + padding.right;
+  const bottom = Math.max(...boxes.map((box) => box.y + box.height)) + padding.bottom;
+
+  return normalizeClip({
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  });
+}
+
+async function getExpandedElementClip(page, selector, expand = { top: 20, right: 20, bottom: 20, left: 20 }) {
+  const box = await page.locator(selector).boundingBox();
+  if (!box) {
+    return { x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height };
+  }
+
+  return normalizeClip({
+    x: box.x - expand.left,
+    y: box.y - expand.top,
+    width: box.width + expand.left + expand.right,
+    height: box.height + expand.top + expand.bottom,
+  });
+}
+
 function getBrowserExecutablePath() {
   const executablePath = BROWSER_PATHS.find((candidate) => existsSync(candidate));
   if (!executablePath) {
@@ -130,8 +180,15 @@ async function resetScene(page) {
   await page.waitForTimeout(250);
 }
 
-async function pushFrame(page, frames, repeat = 1) {
-  const screenshot = await page.screenshot({ type: 'png' });
+async function pushFrame(page, frames, repeat = 1, clip) {
+  const screenshotOptions = {
+    type: 'png',
+  };
+  if (clip) {
+    screenshotOptions.clip = clip;
+  }
+
+  const screenshot = await page.screenshot(screenshotOptions);
   for (let i = 0; i < repeat; i += 1) {
     frames.push(screenshot);
   }
@@ -159,15 +216,15 @@ async function writeGif(outputPath, frames) {
   await writeFile(outputPath, Buffer.from(gif.bytes()));
 }
 
-async function captureTween(page, frameCount, updateFrame) {
+async function captureTween(page, frameCount, updateFrame, clip) {
   const frames = [];
-  await pushFrame(page, frames, 3);
+  await pushFrame(page, frames, 3, clip);
   for (let step = 1; step <= frameCount; step += 1) {
     await updateFrame(step / frameCount);
     await page.waitForTimeout(80);
-    await pushFrame(page, frames, 1);
+    await pushFrame(page, frames, 1, clip);
   }
-  await pushFrame(page, frames, 6);
+  await pushFrame(page, frames, 6, clip);
   return frames;
 }
 
@@ -214,48 +271,54 @@ async function captureFieldTransform(page) {
 }
 
 async function captureFieldEdit(page) {
-  const showcaseFieldId = 'f_2_0';
+  const showcaseFieldId = 'f_1_0';
 
   await resetScene(page);
   await page.evaluate(() => {
     const waferStore = window.__LPC_SHOWCASE__.waferStore.getState();
-    waferStore.setViewState({ granularity: 'field', arrowScaleFactor: 30000 });
+    waferStore.applyVectorMapShowcase();
+    waferStore.setViewState({ granularity: 'field', arrowScaleFactor: 34000 });
   });
   await page.evaluate((fieldId) => {
     const waferStore = window.__LPC_SHOWCASE__.waferStore.getState();
     waferStore.selectField(fieldId);
   }, showcaseFieldId);
   await page.waitForTimeout(500);
+  const clip = await getUnionClip(
+    page,
+    ['[data-wafer-map-panel="interactive"]', '[data-field-edit-panel="true"]'],
+    { top: 18, right: 18, bottom: 18, left: 18 },
+  );
 
-  const frames = await captureTween(page, 24, async (progress) => {
+  const frames = await captureTween(page, 22, async (progress) => {
     const eased = easeInOut(progress);
     await page.evaluate(({ fieldId, value }) => {
       const waferStore = window.__LPC_SHOWCASE__.waferStore.getState();
       waferStore.selectField(fieldId);
       waferStore.setFieldTransformOverride(fieldId, {
-        Tx: Math.round(130 * value),
-        Ty: Math.round(-95 * value),
-        theta: Math.round(160 * value),
-        M: Math.round(0.9 * value * 100) / 100,
-        Sx: Math.round(0.7 * value * 100) / 100,
-        Sy: Math.round(-0.5 * value * 100) / 100,
+        Tx: Math.round(180 * value),
+        Ty: Math.round(-138 * value),
+        theta: Math.round(240 * value),
+        M: Math.round(1.2 * value * 100) / 100,
+        Sx: Math.round(0.92 * value * 100) / 100,
+        Sy: Math.round(-0.66 * value * 100) / 100,
       });
       waferStore.setFieldCornerOverlay(fieldId, {
         cornerDx: [
-          Math.round(40 * value),
-          Math.round(110 * value),
-          Math.round(-45 * value),
-          Math.round(-90 * value),
+          Math.round(58 * value),
+          Math.round(132 * value),
+          Math.round(-72 * value),
+          Math.round(-116 * value),
         ],
         cornerDy: [
-          Math.round(85 * value),
-          Math.round(-30 * value),
-          Math.round(-95 * value),
-          Math.round(35 * value),
+          Math.round(118 * value),
+          Math.round(-48 * value),
+          Math.round(-126 * value),
+          Math.round(52 * value),
         ],
       });
     }, { fieldId: showcaseFieldId, value: eased });
-  });
+  }, clip);
 
   await writeGif(path.join(OUTPUT_DIR, 'showcase-field-edit.gif'), frames);
 }
@@ -337,28 +400,32 @@ async function captureAgentWorkflow(page) {
   await page.evaluate(() => {
     const waferStore = window.__LPC_SHOWCASE__.waferStore.getState();
     waferStore.applyVectorMapShowcase();
+    waferStore.setViewState({ granularity: 'field', arrowScaleFactor: 34000 });
   });
   await page.waitForTimeout(500);
 
   const frames = [];
-  await pushFrame(page, frames, 3);
-
   await page.locator('button[title*="LPC Agent"]').click();
   await page.waitForTimeout(700);
-  await pushFrame(page, frames, 3);
+  const clip = await getExpandedElementClip(
+    page,
+    '[data-agent-panel-root="true"]',
+    { top: 26, right: 24, bottom: 24, left: 280 },
+  );
+  await pushFrame(page, frames, 4, clip);
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(350);
-  await pushFrame(page, frames, 3);
+  await pushFrame(page, frames, 3, clip);
 
   await page.getByRole('button', { name: 'Close settings' }).click();
   await page.waitForTimeout(250);
-  await pushFrame(page, frames, 2);
+  await pushFrame(page, frames, 2, clip);
 
   await page.getByRole('button', { name: 'Generate Plan' }).click();
   await page.locator('textarea').fill('Increase wafer rotation, switch to field view, and open the center field for inspection.');
   await page.waitForTimeout(250);
-  await pushFrame(page, frames, 3);
+  await pushFrame(page, frames, 4, clip);
 
   await page.evaluate(() => {
     window.__LPC_SHOWCASE__.agentStore.setState({
@@ -367,19 +434,19 @@ async function captureAgentWorkflow(page) {
     });
   });
   await page.waitForTimeout(250);
-  await pushFrame(page, frames, 2);
+  await pushFrame(page, frames, 3, clip);
 
   await seedAgentPlan(page);
   await page.waitForTimeout(250);
-  await pushFrame(page, frames, 4);
+  await pushFrame(page, frames, 5, clip);
 
   await page.getByRole('button', { name: 'Apply' }).click();
   await page.waitForTimeout(400);
-  await pushFrame(page, frames, 4);
+  await pushFrame(page, frames, 5, clip);
 
   await page.getByRole('button', { name: 'Undo' }).click();
   await page.waitForTimeout(350);
-  await pushFrame(page, frames, 5);
+  await pushFrame(page, frames, 6, clip);
 
   await writeGif(path.join(OUTPUT_DIR, 'showcase-agent.gif'), frames);
 }

@@ -1,47 +1,59 @@
 # LPC - Wafer Overlay Distortion Data Mocker
 
-A browser-based visual sandbox for generating, inspecting, editing, and exporting wafer overlay distortion data.
+Create believable wafer overlay scenes in minutes.
 
-`LPC Overlay Distortion Data Mocker` is designed for UI prototyping, algorithm experimentation, workflow demos, and mock data generation around wafer / field / die-level overlay behavior. It combines parametric distortion controls with an interactive wafer editor so you can move quickly between "global model" and "local exception" workflows.
+LPC is a browser-based visual sandbox for teams who need realistic wafer overlay behavior before production metrology pipelines exist. It lets you shape wafer-level drift, field-level distortion, and local per-field exceptions in one workspace, inspect the result side by side, and export demo-ready data for UI, algorithm, and workflow development.
 
 > This project is a simulation and mock-data tool. It is not a fab-qualified metrology or process control system.
 
-## At a Glance
+## Why teams use LPC
 
-- Side-by-side `Actual Map` and `Distortion Vector Map` views
-- Wafer-level, field-level, and local per-field editing in one workspace
-- Built-in `Showcase` preset for demo-ready walkthroughs and presentations
-- `Die` / `Field` granularity switching for different analysis modes
-- Export to `CSV` and `JSON` with `mm` / `nm` unit selection
+- Build and demo overlay workflows before live data is available
+- Generate believable distortion scenes for algorithm and analytics experiments
+- Tell a clearer story in stakeholder reviews with editable visual scenarios
+- Move between global wafer behavior and local field exceptions without changing tools
 
-## Showcase GIFs
-
-### Wafer-level transform
-
-![LPC Overlay wafer-level transform showcase](./docs/readme/showcase-wafer-transform.gif)
-
-### Field-level transform
-
-![LPC Overlay field-level transform showcase](./docs/readme/showcase-field-transform.gif)
-
-### Field edit
-
-![LPC Overlay field edit showcase](./docs/readme/showcase-field-edit.gif)
+## See It In Action
 
 ### Agent workflow
 
 ![LPC Overlay agent workflow showcase](./docs/readme/showcase-agent.gif)
 
-## Why this project exists
+### Local field editor
 
-Overlay analysis workflows often need realistic but controllable data:
+![LPC Overlay field edit showcase](./docs/readme/showcase-field-edit.gif)
 
-- Product teams need a believable front-end before live data pipelines exist.
-- Algorithm and analytics work benefits from repeatable parametric distortions.
-- Demo environments need exportable datasets in practical engineering units.
-- Process exploration often needs both wafer-level trends and field-local exceptions in the same session.
+### Global scene controls
 
-This app focuses on that gap: fast visual iteration with enough geometry awareness to make the generated behavior feel useful.
+![LPC Overlay wafer-level transform showcase](./docs/readme/showcase-wafer-transform.gif)
+
+![LPC Overlay field-level transform showcase](./docs/readme/showcase-field-transform.gif)
+
+## What makes it different
+
+- Side-by-side `Actual Map` and `Distortion Vector Map` views
+- Wafer-level, field-level, and local per-field editing in one workspace
+- Smart-positioned floating `Field Editor` that users can drag and resize
+- Built-in `Showcase` preset for demo-ready walkthroughs and presentations
+- `Die` / `Field` granularity switching for different analysis modes
+- Export to `CSV` and `JSON` with `mm` / `nm` unit selection
+- Agent-assisted planning flow for scene changes and analysis
+
+## Who This Is For
+
+- Frontend and product teams building overlay tooling before backend integrations are ready
+- Algorithm and analytics engineers who need repeatable, tunable overlay scenes
+- Demo and solution engineering teams who need credible visual stories fast
+- Internal tooling teams exploring inspection, review, or export workflows
+
+## 30-Second Demo
+
+1. Start the app with `npm run dev`
+2. Click `Load Complex Demo`
+3. Compare `Actual Map` and `Distortion Vector Map`
+4. Select a field and shape it in the floating `Field Editor`
+5. Open `LPC Agent` to draft a scene change plan
+6. Export the result to `CSV` or `JSON`
 
 ## Typical Use Cases
 
@@ -62,7 +74,7 @@ This app focuses on that gap: fast visual iteration with enough geometry awarene
 - Interactive field selection directly on the wafer map.
 - Floating `Field Edit` inspector with transform overrides and corner residual editing.
 - Local field deformation that can create gentle, continuous warped patches instead of only rigid transforms.
-- Auto-docking field editor that repositions based on selected field location.
+- Smart placement for the field editor based on the selected field, with drag and resize support.
 - `Die` and `Field` granularity switching from the main header.
 - Lightweight live statistics overlay on the vector map.
 - Mini wafer overview inset for fast spatial context.
@@ -83,14 +95,6 @@ It applies:
 - A stronger `die`-mode vector presentation so the right-side map reads clearly at a glance.
 
 This gives you a good "default story" for the product without having to manually tune dozens of controls before every demo.
-
-## Quick Demo
-
-1. Start the app with `npm run dev`
-2. Click `Load Complex Demo`
-3. Inspect the left-side warped field patch on `Actual Map`
-4. Compare the right-side vector density, color distribution, and direction flow
-5. Switch between `Die` and `Field` to change how the same distortion pattern is presented
 
 ## What You Can Model
 
@@ -132,7 +136,7 @@ This gives you a good "default story" for the product without having to manually
 - Field edit handles support translation, rotation, scale-like edits, and per-corner adjustment.
 - Empty-space click clears the selected field.
 - `Reset` restores the model state; `Relocate` resets only the camera/view.
-- The floating editor can be dragged manually or returned to automatic docking.
+- The floating editor opens near the selected field, can be dragged anywhere, resized, and reset to its default position.
 
 ## Export Format
 

@@ -43,16 +43,16 @@ function clamp(value: number, min: number, max: number) {
 
 const AGENT_PANEL_KEYFRAMES = `
 @keyframes lpc-agent-fab-edge-glow {
-  0%, 100% { opacity: 0.18; transform: scale(0.99); }
-  18% { opacity: 1; transform: scale(1.045); }
-  42% { opacity: 0.52; transform: scale(1.085); }
-  58% { opacity: 1; transform: scale(1.035); }
-  82% { opacity: 0.26; transform: scale(1.11); }
+  0%, 100% { opacity: 0.16; transform: scale(0.99); }
+  18% { opacity: 0.72; transform: scale(1.03); }
+  42% { opacity: 0.36; transform: scale(1.06); }
+  58% { opacity: 0.72; transform: scale(1.025); }
+  82% { opacity: 0.22; transform: scale(1.075); }
 }
 @keyframes lpc-agent-fab-halo {
-  0%, 100% { opacity: 0.22; transform: scale(0.98); }
-  40% { opacity: 0.92; transform: scale(1.12); }
-  72% { opacity: 0.34; transform: scale(1.18); }
+  0%, 100% { opacity: 0.16; transform: scale(0.98); }
+  40% { opacity: 0.58; transform: scale(1.1); }
+  72% { opacity: 0.24; transform: scale(1.16); }
 }
 @keyframes lpc-agent-status-lamp {
   0%, 100% { transform: scale(1); opacity: 0.95; }
@@ -360,7 +360,7 @@ export const AgentPanel: React.FC = () => {
               height: FAB_HEIGHT + 28,
               zIndex: 198,
               borderRadius: 30,
-              background: 'radial-gradient(circle at 35% 40%, rgba(131, 199, 255, 0.5) 0%, rgba(131, 199, 255, 0.18) 44%, rgba(247, 208, 97, 0.12) 72%, rgba(247, 208, 97, 0) 100%)',
+              background: 'radial-gradient(circle at 35% 40%, rgba(131, 199, 255, 0.34) 0%, rgba(131, 199, 255, 0.14) 44%, rgba(247, 208, 97, 0.08) 72%, rgba(247, 208, 97, 0) 100%)',
               filter: 'blur(4px)',
               pointerEvents: 'none',
               animation: 'lpc-agent-fab-halo 1.9s ease-out infinite',
@@ -375,8 +375,8 @@ export const AgentPanel: React.FC = () => {
               height: FAB_HEIGHT + 12,
               zIndex: 199,
               borderRadius: 24,
-              border: '2px solid rgba(129, 196, 255, 1)',
-              boxShadow: '0 0 0 5px rgba(208, 232, 255, 0.34), 0 0 28px rgba(129, 196, 255, 1), 0 0 58px rgba(129, 196, 255, 0.84), 0 0 96px rgba(247, 208, 97, 0.48)',
+              border: '2px solid rgba(129, 196, 255, 0.7)',
+              boxShadow: '0 0 0 5px rgba(208, 232, 255, 0.2), 0 0 22px rgba(129, 196, 255, 0.56), 0 0 46px rgba(129, 196, 255, 0.34), 0 0 78px rgba(247, 208, 97, 0.2)',
               pointerEvents: 'none',
               animation: 'lpc-agent-fab-edge-glow 1.55s ease-out infinite',
             }}
@@ -385,6 +385,7 @@ export const AgentPanel: React.FC = () => {
       )}
 
       <button
+        data-agent-fab="true"
         onClick={handleFabClick}
         onPointerDown={handleFabPointerDown}
         style={{
@@ -399,11 +400,11 @@ export const AgentPanel: React.FC = () => {
           minHeight: FAB_HEIGHT,
           padding: '0 16px 0 14px',
           borderRadius: 18,
-          border: '1px solid rgba(136,165,193,0.44)',
-          background: 'rgba(250,252,255,0.97)',
+          border: '1px solid rgba(132,161,186,0.34)',
+          background: 'rgba(251,253,255,0.95)',
           color: '#234057',
           boxShadow: showFabIntro
-            ? '0 18px 34px rgba(63, 91, 122, 0.14), 0 0 0 1px rgba(129, 196, 255, 0.3), 0 0 30px rgba(129, 196, 255, 0.62), 0 0 60px rgba(247, 208, 97, 0.22)'
+            ? '0 18px 34px rgba(63, 91, 122, 0.14), 0 0 0 1px rgba(129, 196, 255, 0.22), 0 0 24px rgba(129, 196, 255, 0.24)'
             : '0 18px 34px rgba(63, 91, 122, 0.14)',
           backdropFilter: 'blur(18px)',
           cursor: mounted ? 'default' : 'pointer',
@@ -450,6 +451,7 @@ export const AgentPanel: React.FC = () => {
 
       {mounted && (
         <div
+          data-agent-panel-root="true"
           style={{
             position: 'fixed',
             left: panelPosition.x,

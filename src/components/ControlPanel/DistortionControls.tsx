@@ -3,9 +3,9 @@ import { useWaferStore } from '../../store/useWaferStore';
 import { NumericControlRow } from '../common/NumericControlRow';
 
 const CARD: React.CSSProperties = {
-  background: 'var(--panel-bg)',
-  borderRadius: 14,
-  padding: '13px 14px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(246,249,252,0.98) 100%)',
+  borderRadius: 16,
+  padding: '12px 12px',
   border: '1px solid var(--panel-border)',
   boxShadow: 'var(--panel-shadow)',
 };
@@ -18,24 +18,24 @@ interface SectionHeaderProps {
 }
 
 const SectionHeader: React.FC<SectionHeaderProps> = ({ label, sublabel, accentColor, onReset }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ width: 3, height: 15, background: accentColor, borderRadius: 99, flexShrink: 0 }} />
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#243a4c', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      <div style={{ width: 4, height: 18, background: accentColor, borderRadius: 99, flexShrink: 0 }} />
+      <span style={{ fontSize: 10.5, fontWeight: 800, color: '#243a4c', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
         {label}
       </span>
-      <span style={{ fontSize: 10, color: '#7f96aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <span style={{ fontSize: 9.5, color: '#7f96aa', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {sublabel}
       </span>
     </div>
     <button
       onClick={onReset}
       style={{
-        fontSize: 11,
+        fontSize: 10.5,
         background: 'var(--surface)',
         border: '1px solid var(--line)',
         borderRadius: 999,
-        padding: '3px 10px',
+        padding: '3px 9px',
         cursor: 'pointer',
         color: '#627b90',
         transition: 'all 0.15s',
@@ -128,42 +128,60 @@ export const DistortionControls: React.FC = memo(() => {
   }, [setFieldDistortion, clearCornerOverlays]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={CARD}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <div
+        style={{
+          ...CARD,
+          background: 'linear-gradient(180deg, rgba(242,247,255,0.98) 0%, rgba(250,252,255,0.98) 100%)',
+          border: '1px solid rgba(116, 152, 197, 0.22)',
+        }}
+      >
         <SectionHeader label="Wafer-Level" sublabel="Inter-field" accentColor="#4f8bc9" onReset={resetWafer} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <NumericControlRow label="Translation X" symbol="Tx" unit="nm" value={waferDraft.Tx} min={-2000} max={2000} step={5} showSlider onChange={(v) => updateWafer({ Tx: v })} accentColor="#4f8bc9" displayPrecision={2} />
-          <NumericControlRow label="Translation Y" symbol="Ty" unit="nm" value={waferDraft.Ty} min={-2000} max={2000} step={5} showSlider onChange={(v) => updateWafer({ Ty: v })} accentColor="#4f8bc9" displayPrecision={2} />
-          <NumericControlRow label="Rotation" symbol="theta" unit="urad" value={waferDraft.theta} min={-400} max={400} step={1} showSlider onChange={(v) => updateWafer({ theta: v })} accentColor="#4f8bc9" displayPrecision={2} />
-          <NumericControlRow label="Magnification" symbol="M" unit="ppm" value={waferDraft.M} min={-300} max={300} step={0.5} showSlider onChange={(v) => updateWafer({ M: v })} accentColor="#4f8bc9" displayPrecision={2} />
-          <NumericControlRow label="Asym Scale X" symbol="Sx" unit="ppm" value={waferDraft.Sx} min={-300} max={300} step={0.5} showSlider onChange={(v) => updateWafer({ Sx: v })} accentColor="#4f8bc9" displayPrecision={2} />
-          <NumericControlRow label="Asym Scale Y" symbol="Sy" unit="ppm" value={waferDraft.Sy} min={-300} max={300} step={0.5} showSlider onChange={(v) => updateWafer({ Sy: v })} accentColor="#4f8bc9" displayPrecision={2} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <NumericControlRow label="Translation X" symbol="Tx" unit="nm" value={waferDraft.Tx} min={-2000} max={2000} step={5} showSlider chrome="soft" onChange={(v) => updateWafer({ Tx: v })} accentColor="#4f8bc9" displayPrecision={2} />
+          <NumericControlRow label="Translation Y" symbol="Ty" unit="nm" value={waferDraft.Ty} min={-2000} max={2000} step={5} showSlider chrome="soft" onChange={(v) => updateWafer({ Ty: v })} accentColor="#4f8bc9" displayPrecision={2} />
+          <NumericControlRow label="Rotation" symbol="Th" unit="urad" value={waferDraft.theta} min={-400} max={400} step={1} showSlider chrome="soft" onChange={(v) => updateWafer({ theta: v })} accentColor="#4f8bc9" displayPrecision={2} />
+          <NumericControlRow label="Magnification" symbol="M" unit="ppm" value={waferDraft.M} min={-300} max={300} step={0.5} showSlider chrome="soft" onChange={(v) => updateWafer({ M: v })} accentColor="#4f8bc9" displayPrecision={2} />
+          <NumericControlRow label="Asym Scale X" symbol="Sx" unit="ppm" value={waferDraft.Sx} min={-300} max={300} step={0.5} showSlider chrome="soft" onChange={(v) => updateWafer({ Sx: v })} accentColor="#4f8bc9" displayPrecision={2} />
+          <NumericControlRow label="Asym Scale Y" symbol="Sy" unit="ppm" value={waferDraft.Sy} min={-300} max={300} step={0.5} showSlider chrome="soft" onChange={(v) => updateWafer({ Sy: v })} accentColor="#4f8bc9" displayPrecision={2} />
         </div>
       </div>
 
-      <div style={CARD}>
+      <div
+        style={{
+          ...CARD,
+          background: 'linear-gradient(180deg, rgba(245,248,251,0.98) 0%, rgba(251,252,253,0.98) 100%)',
+          border: '1px solid rgba(136, 155, 174, 0.2)',
+        }}
+      >
         <SectionHeader label="Field-Level" sublabel="Intra-field" accentColor="#728ea5" onReset={resetField} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <NumericControlRow label="Translation X" symbol="FTx" unit="nm" value={fieldDraft.FTx} min={-1000} max={1000} step={5} showSlider onChange={(v) => updateField({ FTx: v })} accentColor="#728ea5" displayPrecision={2} />
-          <NumericControlRow label="Translation Y" symbol="FTy" unit="nm" value={fieldDraft.FTy} min={-1000} max={1000} step={5} showSlider onChange={(v) => updateField({ FTy: v })} accentColor="#728ea5" displayPrecision={2} />
-          <NumericControlRow label="Rotation" symbol="Ftheta" unit="urad" value={fieldDraft.Ftheta} min={-300} max={300} step={1} showSlider onChange={(v) => updateField({ Ftheta: v })} accentColor="#728ea5" displayPrecision={2} />
-          <NumericControlRow label="Magnification" symbol="FM" unit="ppm" value={fieldDraft.FM} min={-200} max={200} step={0.5} showSlider onChange={(v) => updateField({ FM: v })} accentColor="#728ea5" displayPrecision={2} />
-          <NumericControlRow label="Asym Scale X" symbol="FSx" unit="ppm" value={fieldDraft.FSx} min={-200} max={200} step={0.5} showSlider onChange={(v) => updateField({ FSx: v })} accentColor="#728ea5" displayPrecision={2} />
-          <NumericControlRow label="Asym Scale Y" symbol="FSy" unit="ppm" value={fieldDraft.FSy} min={-200} max={200} step={0.5} showSlider onChange={(v) => updateField({ FSy: v })} accentColor="#728ea5" displayPrecision={2} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <NumericControlRow label="Translation X" symbol="FTx" unit="nm" value={fieldDraft.FTx} min={-1000} max={1000} step={5} showSlider chrome="soft" onChange={(v) => updateField({ FTx: v })} accentColor="#728ea5" displayPrecision={2} />
+          <NumericControlRow label="Translation Y" symbol="FTy" unit="nm" value={fieldDraft.FTy} min={-1000} max={1000} step={5} showSlider chrome="soft" onChange={(v) => updateField({ FTy: v })} accentColor="#728ea5" displayPrecision={2} />
+          <NumericControlRow label="Rotation" symbol="FTh" unit="urad" value={fieldDraft.Ftheta} min={-300} max={300} step={1} showSlider chrome="soft" onChange={(v) => updateField({ Ftheta: v })} accentColor="#728ea5" displayPrecision={2} />
+          <NumericControlRow label="Magnification" symbol="FM" unit="ppm" value={fieldDraft.FM} min={-200} max={200} step={0.5} showSlider chrome="soft" onChange={(v) => updateField({ FM: v })} accentColor="#728ea5" displayPrecision={2} />
+          <NumericControlRow label="Asym Scale X" symbol="FSx" unit="ppm" value={fieldDraft.FSx} min={-200} max={200} step={0.5} showSlider chrome="soft" onChange={(v) => updateField({ FSx: v })} accentColor="#728ea5" displayPrecision={2} />
+          <NumericControlRow label="Asym Scale Y" symbol="FSy" unit="ppm" value={fieldDraft.FSy} min={-200} max={200} step={0.5} showSlider chrome="soft" onChange={(v) => updateField({ FSy: v })} accentColor="#728ea5" displayPrecision={2} />
         </div>
       </div>
 
-      <div style={CARD}>
+      <div
+        style={{
+          ...CARD,
+          background: 'linear-gradient(180deg, rgba(255,247,240,0.98) 0%, rgba(252,250,247,0.98) 100%)',
+          border: '1px solid rgba(210, 154, 101, 0.24)',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <div style={{ width: 3, height: 15, background: '#d4874e', borderRadius: 99, flexShrink: 0 }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#243a4c', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ width: 4, height: 18, background: '#d4874e', borderRadius: 99, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#243a4c', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
             EPE
           </span>
           <span style={{ fontSize: 10, color: '#7f96aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Edge Placement Error
           </span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: '#61788d' }}>Mode</span>
             <select
@@ -187,9 +205,9 @@ export const DistortionControls: React.FC = memo(() => {
           </div>
           {epeDraft.mode !== 'none' && (
             <>
-              <NumericControlRow label="Magnitude" symbol="EPE" unit="nm" value={epeDraft.magnitude} min={0} max={250} step={1} showSlider onChange={(v) => updateEpe({ magnitude: v })} accentColor="#d4874e" displayPrecision={2} />
+              <NumericControlRow label="Magnitude" symbol="EPE" unit="nm" value={epeDraft.magnitude} min={0} max={250} step={1} showSlider chrome="soft" onChange={(v) => updateEpe({ magnitude: v })} accentColor="#d4874e" displayPrecision={2} />
               {epeDraft.mode === 'systematic' && (
-                <NumericControlRow label="Direction" symbol="deg" unit="deg" value={epeDraft.systematicAngle} min={0} max={360} step={1} showSlider onChange={(v) => updateEpe({ systematicAngle: v })} accentColor="#d4874e" displayPrecision={2} />
+                <NumericControlRow label="Direction" symbol="deg" unit="deg" value={epeDraft.systematicAngle} min={0} max={360} step={1} showSlider chrome="soft" onChange={(v) => updateEpe({ systematicAngle: v })} accentColor="#d4874e" displayPrecision={2} />
               )}
               {epeDraft.mode === 'random' && (
                 <NumericControlRow label="RNG Seed" unit="id" value={epeDraft.seed} min={0} max={9999} step={1} onChange={(v) => updateEpe({ seed: Math.round(v) || 0 })} accentColor="#d4874e" displayPrecision={0} />

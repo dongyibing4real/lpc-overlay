@@ -41,11 +41,12 @@ export const StatsSidebar: React.FC = memo(() => {
         display: 'grid',
         gridTemplateColumns: '1fr auto',
         columnGap: 8,
-        rowGap: 3,
-        padding: '7px 9px',
-        border: '1px solid rgba(150, 170, 186, 0.34)',
-        borderRadius: 10,
-        background: 'rgba(245, 249, 252, 0.26)',
+        rowGap: 4,
+        padding: '9px 11px',
+        border: '1px solid rgba(150, 170, 186, 0.28)',
+        borderRadius: 12,
+        background: 'rgba(251, 253, 255, 0.88)',
+        boxShadow: '0 10px 24px rgba(72,96,120,0.08)',
         textShadow: '0 1px 0 rgba(255,255,255,0.65)',
       }}
     >

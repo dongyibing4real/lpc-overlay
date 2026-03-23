@@ -3,6 +3,7 @@ import { WaferMapCanvas } from './components/WaferMap/WaferMapCanvas';
 import { ControlPanel } from './components/ControlPanel/ControlPanel';
 import { DisplayPanel } from './components/DisplayPanel';
 import { AgentPanel } from './components/AgentPanel';
+import { FieldEditFloatingWindow } from './components/FieldEditFloatingWindow';
 import { useWaferStore } from './store/useWaferStore';
 
 const ChipIcon: React.FC = () => (
@@ -23,7 +24,7 @@ const shellPanel: React.CSSProperties = {
   background: 'var(--panel-bg)',
   border: '1px solid var(--panel-border)',
   boxShadow: 'var(--panel-shadow)',
-  backdropFilter: 'blur(16px)',
+  backdropFilter: 'blur(20px)',
 };
 
 const App: React.FC = () => {
@@ -46,12 +47,13 @@ const App: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 22px',
-          height: 56,
+          padding: '0 24px',
+          height: 64,
           flexShrink: 0,
-          background: 'rgba(250,252,253,0.84)',
+          background: 'rgba(247, 251, 254, 0.76)',
           borderBottom: '1px solid var(--panel-border)',
-          backdropFilter: 'blur(18px)',
+          boxShadow: '0 12px 28px rgba(59, 82, 106, 0.06)',
+          backdropFilter: 'blur(22px)',
           zIndex: 10,
         }}
       >
@@ -61,13 +63,13 @@ const App: React.FC = () => {
               width: 32,
               height: 32,
               flexShrink: 0,
-              borderRadius: 10,
-              background: 'var(--surface)',
+              borderRadius: 12,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(236,244,249,0.98) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               border: '1px solid var(--panel-border)',
-              boxShadow: '0 4px 10px rgba(72,96,120,0.06)',
+              boxShadow: '0 8px 18px rgba(72,96,120,0.08)',
             }}
           >
             <ChipIcon />
@@ -76,7 +78,7 @@ const App: React.FC = () => {
           <div>
             <div
               style={{
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
                 lineHeight: 1.2,
@@ -91,10 +93,10 @@ const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span
             style={{
-              fontSize: 10,
+              fontSize: 10.5,
               color: 'var(--text-2)',
               fontWeight: 600,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.09em',
               textTransform: 'uppercase',
             }}
           >
@@ -105,8 +107,9 @@ const App: React.FC = () => {
               display: 'flex',
               background: 'var(--surface-2)',
               border: '1px solid var(--panel-border)',
-              borderRadius: 10,
-              padding: 3,
+              borderRadius: 12,
+              padding: 4,
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.64)',
             }}
           >
             {(['die', 'field'] as const).map((g) => (
@@ -114,10 +117,10 @@ const App: React.FC = () => {
                 key={g}
                 onClick={() => setViewState({ granularity: g })}
                 style={{
-                  padding: '5px 18px',
-                  fontSize: 11,
+                  padding: '6px 18px',
+                  fontSize: 11.5,
                   fontWeight: 700,
-                  borderRadius: 7,
+                  borderRadius: 9,
                   border: 'none',
                   cursor: 'pointer',
                   letterSpacing: '0.04em',
@@ -129,7 +132,7 @@ const App: React.FC = () => {
                   color: granularity === g ? 'var(--text-1)' : 'var(--text-2)',
                   boxShadow:
                     granularity === g
-                      ? '0 2px 6px rgba(72,96,120,0.08)'
+                      ? '0 6px 14px rgba(72,96,120,0.1)'
                       : 'none',
                 }}
               >
@@ -140,15 +143,17 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', padding: 12, gap: 12 }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', padding: 14, gap: 14 }}>
         <aside
           style={{
             ...shellPanel,
-            width: 288,
+            width: 306,
             flexShrink: 0,
-            borderRadius: 16,
+            borderRadius: 20,
             padding: '10px 10px',
             overflow: 'hidden',
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(244,249,253,0.96) 100%)',
           }}
         >
           <ControlPanel />
@@ -158,7 +163,7 @@ const App: React.FC = () => {
           style={{
             flex: 1,
             display: 'flex',
-            gap: 12,
+            gap: 14,
             padding: 2,
             overflow: 'hidden',
             minWidth: 0,
@@ -171,17 +176,20 @@ const App: React.FC = () => {
         <aside
           style={{
             ...shellPanel,
-            width: 246,
+            width: 250,
             flexShrink: 0,
-            borderRadius: 16,
-            padding: '10px 10px',
+            borderRadius: 20,
+            padding: '12px 12px',
             overflow: 'hidden',
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(246,250,253,0.98) 100%)',
           }}
         >
           <DisplayPanel />
         </aside>
       </div>
 
+      <FieldEditFloatingWindow />
       <AgentPanel />
     </div>
   );

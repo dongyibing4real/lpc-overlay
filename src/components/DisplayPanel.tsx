@@ -4,9 +4,9 @@ import { VectorLegend } from './VectorLegend';
 import { FileUpload } from './ControlPanel/FileUpload';
 
 const CARD: React.CSSProperties = {
-  background: 'var(--panel-bg)',
-  borderRadius: 14,
-  padding: '13px 14px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(246,250,253,0.98) 100%)',
+  borderRadius: 16,
+  padding: '14px 14px',
   border: '1px solid var(--panel-border)',
   boxShadow: 'var(--panel-shadow)',
 };
@@ -16,11 +16,11 @@ export const DisplayPanel: React.FC = memo(() => {
   const viewState = useWaferStore((s) => s.viewState);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', overflowY: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflowY: 'auto' }}>
       <div style={CARD}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <div style={{ width: 3, height: 15, background: '#4f8bc9', borderRadius: 99, flexShrink: 0 }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#243a4c', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <div style={{ width: 4, height: 18, background: '#4f8bc9', borderRadius: 99, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#243a4c', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
             Display
           </span>
         </div>
@@ -39,13 +39,13 @@ export const DisplayPanel: React.FC = memo(() => {
                 className="accent-blue-400"
                 style={{ width: 13, height: 13, cursor: 'pointer' }}
               />
-              <span style={{ fontSize: 12, color: '#61788d' }}>{label}</span>
+              <span style={{ fontSize: 12.5, color: '#61788d' }}>{label}</span>
             </label>
           ))}
 
           <div style={{ marginTop: 3 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-              <span style={{ fontSize: 11, color: '#72879a' }}>Vector scale</span>
+              <span style={{ fontSize: 11.5, color: '#72879a' }}>Vector scale</span>
               <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#24465f' }}>
                 {viewState.arrowScaleFactor.toLocaleString()}x
               </span>
@@ -63,7 +63,7 @@ export const DisplayPanel: React.FC = memo(() => {
 
           <div style={{ marginTop: 3 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-              <span style={{ fontSize: 11, color: '#72879a' }}>Color max</span>
+              <span style={{ fontSize: 11.5, color: '#72879a' }}>Color max</span>
               <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#24465f' }}>
                 {viewState.colorMapRange[1]} nm
               </span>
