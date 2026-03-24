@@ -1,44 +1,16 @@
 import React, { memo, useEffect, useMemo, useState } from 'react';
-import { useWaferStore, ZERO_OVERLAY, ZERO_FIELD_TRANSFORM } from '../store/useWaferStore';
+import { useWaferStore, ZERO_OVERLAY, ZERO_FIELD_TRANSFORM } from '../state/waferStore';
 import type { CornerOverlay, FieldTransformOverride } from '../types/wafer';
+import { FIELD_EDIT_TRANSFORM_LIMITS } from '../utils/fieldEditGeometry';
 import { NumericControlRow } from './common/NumericControlRow';
-
-const CARD: React.CSSProperties = {
-  background: 'var(--panel-bg)',
-  borderRadius: 14,
-  padding: '13px 14px',
-  border: '1px solid var(--panel-border)',
-  boxShadow: 'var(--panel-shadow)',
-};
+import { CARD, INNER_CARD } from '../styles/shared';
+import css from './FieldEditPanel.module.css';
 
 const CORNER_LABELS = ['TL', 'TR', 'BR', 'BL'] as const;
-
-const FLOATING_SECTION_CARD: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 9,
-  padding: '11px',
-  borderRadius: 14,
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(243,248,252,0.96) 100%)',
-  border: '1px solid rgba(165, 183, 199, 0.26)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9)',
-};
-
-const metricTileStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 4,
-  minWidth: 0,
-  padding: '8px 9px',
-  borderRadius: 11,
-  background: 'rgba(255,255,255,0.8)',
-  border: '1px solid rgba(173, 190, 204, 0.24)',
-};
 
 interface FieldEditPanelProps {
   floating?: boolean;
   onHeaderPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void;
-  onResetPosition?: () => void;
 }
 
 function isDragBlockedTarget(target: EventTarget | null): boolean {
@@ -59,29 +31,9 @@ function hasCornerValues(value: CornerOverlay): boolean {
   return [...value.cornerDx, ...value.cornerDy].some((entry) => Math.abs(entry) > 0.0001);
 }
 
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 800,
-  color: '#3e596d',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-};
-
-const sectionActionButtonStyle: React.CSSProperties = {
-  fontSize: 9.5,
-  fontWeight: 700,
-  border: '1px solid rgba(164, 184, 198, 0.3)',
-  borderRadius: 999,
-  background: 'rgba(255,255,255,0.82)',
-  color: '#61788d',
-  padding: '4px 9px',
-  cursor: 'pointer',
-};
-
 export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
   floating = false,
   onHeaderPointerDown,
-  onResetPosition,
 }) => {
   const fields = useWaferStore((s) => s.fields);
   const selectedFieldId = useWaferStore((s) => s.selectedFieldId);
@@ -104,6 +56,12 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
   const [showCorners, setShowCorners] = useState(true);
   const hasTransformOverrides = useMemo(() => hasTransformValues(transformDraft), [transformDraft]);
   const hasCornerOverrides = useMemo(() => hasCornerValues(cornerDraft), [cornerDraft]);
+  const activeEditItems = useMemo(() => {
+    const active: Array<'Transform' | 'Corner'> = [];
+    if (hasTransformOverrides) active.push('Transform');
+    if (hasCornerOverrides) active.push('Corner');
+    return active;
+  }, [hasCornerOverrides, hasTransformOverrides]);
 
   useEffect(() => {
     if (!selectedFieldId) {
@@ -170,23 +128,8 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
     <div
       data-no-zoom={floating ? 'true' : undefined}
       data-field-edit-panel="true"
-      style={{
-        ...CARD,
-        display: 'flex',
-        flexDirection: 'column',
-        ...(floating
-          ? {
-            width: '100%',
-            height: '100%',
-            padding: '13px 13px',
-            background: 'rgba(253, 254, 255, 0.88)',
-            backdropFilter: 'blur(18px)',
-            border: '1px solid rgba(154, 176, 195, 0.34)',
-            boxShadow: '0 18px 36px rgba(72,96,120,0.14)',
-            overflow: 'hidden',
-          }
-          : null),
-      }}
+      className={floating ? css.rootFloating : css.root}
+      style={floating ? undefined : CARD}
     >
       <div
         onPointerDown={(event) => {
@@ -194,72 +137,21 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
           if (isDragBlockedTarget(event.target)) return;
           onHeaderPointerDown(event);
         }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: floating ? 10 : 8,
-          flexShrink: 0,
-          ...(floating
-            ? {
-              position: 'relative',
-              zIndex: 2,
-              paddingBottom: 10,
-              borderBottom: '1px solid rgba(176,193,206,0.24)',
-              background: 'linear-gradient(180deg, rgba(253,254,255,0.98) 0%, rgba(249,252,254,0.92) 100%)',
-            }
-            : null),
-        }}
+        className={floating ? css.headerFloating : css.header}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minWidth: 0,
-          }}
-        >
-          <div style={{ width: 4, height: floating ? 18 : 14, background: '#3c78a8', borderRadius: 99, flexShrink: 0 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#7590a6', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Selected Field
-            </span>
-            <span style={{ fontSize: floating ? 11.5 : 10.5, fontWeight: 800, color: '#243a4c', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
-              Field Editor
-            </span>
+        <div className={css.headerLeft}>
+          <div className={floating ? css.accentBarFloating : css.accentBar} />
+          <div className={css.headerTitles}>
+            <span className={css.headerSupertitle}>Selected Field</span>
+            <span className={floating ? css.headerTitleFloating : css.headerTitle}>Field Editor</span>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {floating && onResetPosition && (
-            <button
-              onClick={onResetPosition}
-              onPointerDown={(event) => event.stopPropagation()}
-              style={{
-                fontSize: 9.5,
-                border: '1px solid var(--line)',
-                borderRadius: 999,
-                background: 'rgba(255,255,255,0.84)',
-                color: '#61788d',
-                padding: '3px 8px',
-                cursor: 'pointer',
-              }}
-            >
-              Reset Pos
-            </button>
-          )}
+        <div className={css.headerActions}>
           {selectedFieldId && (
             <button
               onClick={() => selectField(null)}
               onPointerDown={(event) => event.stopPropagation()}
-              style={{
-                fontSize: 9.5,
-                border: '1px solid var(--line)',
-                borderRadius: 999,
-                background: 'rgba(255,255,255,0.84)',
-                color: '#61788d',
-                padding: '3px 8px',
-                cursor: 'pointer',
-              }}
+              className={css.closeButton}
             >
               Close
             </button>
@@ -267,208 +159,111 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-          minHeight: 0,
-          flex: 1,
-          overflowY: floating ? 'auto' : 'visible',
-          paddingRight: floating ? 4 : 0,
-          paddingTop: floating ? 2 : 0,
-        }}
-      >
+      <div className={floating ? css.bodyFloating : css.body}>
         {!selectedField ? (
           <div
             style={{
-              ...FLOATING_SECTION_CARD,
+              ...INNER_CARD,
               gap: 6,
               alignItems: 'flex-start',
               background: 'linear-gradient(180deg, rgba(248,252,255,0.94) 0%, rgba(242,248,252,0.96) 100%)',
             }}
           >
-            <div style={{ fontSize: 10, fontWeight: 800, color: '#4a6477', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              No Field Selected
-            </div>
-            <div style={{ fontSize: 12, color: '#73879a', lineHeight: 1.6 }}>
+            <div className={css.emptyTitle}>No Field Selected</div>
+            <div className={css.emptyDescription}>
               Click any field on the Actual Map to open a local inspector for transform overrides and corner residual shaping.
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: floating ? 12 : 12 }}>
-          <div
-            style={{
-              ...FLOATING_SECTION_CARD,
-              gap: 9,
-              background: 'linear-gradient(180deg, rgba(238,246,252,0.98) 0%, rgba(246,250,253,0.98) 100%)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
-              <div>
-                <div style={{ fontSize: 13.5, fontWeight: 800, color: '#24465f', letterSpacing: '-0.01em' }}>
+          <div className={css.sectionList}>
+          {/* ── Field info card ── */}
+          <div style={{ ...INNER_CARD, gap: 10 }} className={css.fieldInfoCard}>
+            <div className={css.fieldInfoLayout}>
+              <div className={css.fieldInfoNameBlock}>
+                <div className={css.fieldName}>
                   Field ({selectedField.col}, {selectedField.row})
                 </div>
-                <div style={{ fontSize: 10.5, color: '#6b8598', marginTop: 2 }}>
-                  Local distortions and per-corner residual tweaks
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: '#6f879a',
-                    fontFamily: 'monospace',
-                    padding: '4px 8px',
-                    borderRadius: 999,
-                    background: 'rgba(255,255,255,0.74)',
-                    border: '1px solid rgba(176,193,206,0.22)',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {selectedField.id}
-                </div>
-                {hasTransformOverrides && (
-                  <div
-                    style={{
-                      fontSize: 8.5,
-                      fontWeight: 800,
-                      color: '#275f8d',
-                      letterSpacing: '0.07em',
-                      textTransform: 'uppercase',
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(85, 145, 201, 0.12)',
-                    }}
-                  >
-                    Transform Active
-                  </div>
-                )}
-                {hasCornerOverrides && (
-                  <div
-                    style={{
-                      fontSize: 8.5,
-                      fontWeight: 800,
-                      color: '#927047',
-                      letterSpacing: '0.07em',
-                      textTransform: 'uppercase',
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(213, 168, 94, 0.14)',
-                    }}
-                  >
-                    Residuals Active
-                  </div>
-                )}
+                <div className={css.fieldId}>ID {selectedField.id}</div>
               </div>
             </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 8,
-                minWidth: 0,
-              }}
-            >
-              <div style={metricTileStyle}>
-                <span style={{ fontSize: 9, color: '#7f95a8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                  Center X
-                </span>
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    color: '#375469',
-                    fontFamily: 'monospace',
-                    fontWeight: 700,
-                    minWidth: 0,
-                  }}
-                >
-                  {formatCenterMm(selectedField.centerDesign.x)}
-                </span>
+            <div className={css.fieldInfoGrid}>
+              <div className={css.metaColumn}>
+                <span className={css.metaLabel}>Active Edits</span>
+                <div className={css.activeEditsList}>
+                  {activeEditItems.length > 0 ? activeEditItems.map((item) => (
+                    <span key={item} className={css.activeEditItem}>
+                      <span aria-hidden="true" className={css.activeEditDot} />
+                      {item}
+                    </span>
+                  )) : (
+                    <span className={css.noEditsLabel}>No local edits</span>
+                  )}
+                </div>
               </div>
-              <div style={metricTileStyle}>
-                <span style={{ fontSize: 9, color: '#7f95a8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                  Center Y
-                </span>
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    color: '#375469',
-                    fontFamily: 'monospace',
-                    fontWeight: 700,
-                    minWidth: 0,
-                  }}
-                >
-                  {formatCenterMm(selectedField.centerDesign.y)}
-                </span>
+              <div className={css.twoColGrid}>
+                <div className={css.metaColumn}>
+                  <span className={css.metaLabel}>Center X</span>
+                  <span className={css.monoValue}>{formatCenterMm(selectedField.centerDesign.x)}</span>
+                </div>
+                <div className={css.metaColumn}>
+                  <span className={css.metaLabel}>Center Y</span>
+                  <span className={css.monoValue}>{formatCenterMm(selectedField.centerDesign.y)}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div style={FLOATING_SECTION_CARD}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={sectionTitleStyle}>Transform</span>
-                <span style={{ fontSize: 10.5, color: '#73879a' }}>
+          {/* ── Transform section ── */}
+          <div style={INNER_CARD}>
+            <div className={css.sectionHeader}>
+              <div className={css.sectionTitleBlock}>
+                <span className={css.sectionTitle}>Transform</span>
+                <span className={css.sectionSubtitle}>
                   Move, rotate, and scale this one field without changing the wafer model.
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className={css.sectionActions}>
                 <button
                   onClick={() => {
                     resetFieldTransformOverride(selectedField.id);
                     setTransformDraft(ZERO_FIELD_TRANSFORM);
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
-                  style={sectionActionButtonStyle}
+                  className={css.pillButton}
                 >
                   Reset
                 </button>
                 <button
                   onClick={() => setShowTransform((prev) => !prev)}
                   onPointerDown={(event) => event.stopPropagation()}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: 'transparent',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                  }}
+                  className={css.toggleButton}
                 >
-                  <span style={{ color: '#869aad', fontSize: 14, lineHeight: 1 }}>{showTransform ? '-' : '+'}</span>
+                  <span className={css.toggleIcon}>{showTransform ? '-' : '+'}</span>
                 </button>
               </div>
             </div>
             {showTransform && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {renderTransformControl('Translate X', 'Tx', 'nm', transformDraft.Tx, -2000, 2000, 5, 'Tx')}
-                {renderTransformControl('Translate Y', 'Ty', 'nm', transformDraft.Ty, -2000, 2000, 5, 'Ty')}
-                {renderTransformControl('Rotate', 'Th', 'urad', transformDraft.theta, -1200, 1200, 1, 'theta')}
-                {renderTransformControl('Magnify', 'M', 'ppm', transformDraft.M, -300, 300, 0.5, 'M')}
-                {renderTransformControl('Scale X', 'Sx', 'ppm', transformDraft.Sx, -300, 300, 0.5, 'Sx')}
-                {renderTransformControl('Scale Y', 'Sy', 'ppm', transformDraft.Sy, -300, 300, 0.5, 'Sy')}
+              <div className={css.controlList}>
+                {renderTransformControl('Translate X', 'Tx', 'nm', transformDraft.Tx, FIELD_EDIT_TRANSFORM_LIMITS.Tx[0], FIELD_EDIT_TRANSFORM_LIMITS.Tx[1], 5, 'Tx')}
+                {renderTransformControl('Translate Y', 'Ty', 'nm', transformDraft.Ty, FIELD_EDIT_TRANSFORM_LIMITS.Ty[0], FIELD_EDIT_TRANSFORM_LIMITS.Ty[1], 5, 'Ty')}
+                {renderTransformControl('Rotate', 'Th', 'urad', transformDraft.theta, FIELD_EDIT_TRANSFORM_LIMITS.theta[0], FIELD_EDIT_TRANSFORM_LIMITS.theta[1], 1, 'theta')}
+                {renderTransformControl('Magnify', 'M', 'ppm', transformDraft.M, FIELD_EDIT_TRANSFORM_LIMITS.M[0], FIELD_EDIT_TRANSFORM_LIMITS.M[1], 0.5, 'M')}
+                {renderTransformControl('Scale X', 'Sx', 'ppm', transformDraft.Sx, FIELD_EDIT_TRANSFORM_LIMITS.Sx[0], FIELD_EDIT_TRANSFORM_LIMITS.Sx[1], 0.5, 'Sx')}
+                {renderTransformControl('Scale Y', 'Sy', 'ppm', transformDraft.Sy, FIELD_EDIT_TRANSFORM_LIMITS.Sy[0], FIELD_EDIT_TRANSFORM_LIMITS.Sy[1], 0.5, 'Sy')}
               </div>
             )}
           </div>
 
-          <div style={FLOATING_SECTION_CARD}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                width: '100%',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={sectionTitleStyle}>Corner Residuals</span>
-                <span style={{ fontSize: 10.5, color: '#73879a' }}>
+          {/* ── Corner residuals section ── */}
+          <div style={INNER_CARD}>
+            <div className={css.sectionHeaderFull}>
+              <div className={css.sectionTitleBlock}>
+                <span className={css.sectionTitle}>Corner Residuals</span>
+                <span className={css.sectionSubtitle}>
                   Shape the four corners directly when a rigid transform is not enough.
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className={css.sectionActions}>
                 <button
                   onClick={(event) => {
                     event.stopPropagation();
@@ -476,95 +271,40 @@ export const FieldEditPanel: React.FC<FieldEditPanelProps> = memo(({
                     setCornerDraft(ZERO_OVERLAY);
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
-                  style={sectionActionButtonStyle}
+                  className={css.pillButton}
                 >
                   Reset
                 </button>
                 <button
                   onClick={() => setShowCorners((prev) => !prev)}
                   onPointerDown={(event) => event.stopPropagation()}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: 'transparent',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                  }}
+                  className={css.toggleButton}
                 >
-                  <span style={{ color: '#869aad', fontSize: 14, lineHeight: 1 }}>{showCorners ? '-' : '+'}</span>
+                  <span className={css.toggleIcon}>{showCorners ? '-' : '+'}</span>
                 </button>
               </div>
             </div>
             {showCorners && (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '40px 1fr 1fr',
-                  gap: 8,
-                  alignItems: 'center',
-                  padding: '10px',
-                  borderRadius: 12,
-                  background: 'rgba(248, 251, 253, 0.92)',
-                  border: '1px solid rgba(176, 193, 206, 0.22)',
-                }}
-              >
+              <div className={css.cornerGrid}>
                 <div />
-                <div style={{ fontSize: 9.5, color: '#869aad', textTransform: 'uppercase', letterSpacing: '0.05em' }}>dx</div>
-                <div style={{ fontSize: 9.5, color: '#869aad', textTransform: 'uppercase', letterSpacing: '0.05em' }}>dy</div>
+                <div className={css.cornerAxisLabel}>dx</div>
+                <div className={css.cornerAxisLabel}>dy</div>
                 {CORNER_LABELS.map((label, index) => (
                   <React.Fragment key={label}>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        color: '#486579',
-                        fontWeight: 800,
-                        width: 30,
-                        height: 30,
-                        borderRadius: 10,
-                        background: 'rgba(255,255,255,0.86)',
-                        border: '1px solid rgba(176,193,206,0.22)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {label}
-                    </div>
+                    <div className={css.cornerLabel}>{label}</div>
                     <input
                       type="number"
                       value={Number(cornerDraft.cornerDx[index].toFixed(2))}
                       step={0.5}
                       onChange={(e) => updateCornerValue(index, 'x', parseFloat(e.target.value) || 0)}
-                      style={{
-                        width: '100%',
-                        fontSize: 11.5,
-                        background: 'var(--surface)',
-                        border: '1px solid var(--line)',
-                        borderRadius: 9,
-                        padding: '6px 7px',
-                        color: '#203547',
-                        fontFamily: 'monospace',
-                        outline: 'none',
-                      }}
+                      className={css.cornerInput}
                     />
                     <input
                       type="number"
                       value={Number(cornerDraft.cornerDy[index].toFixed(2))}
                       step={0.5}
                       onChange={(e) => updateCornerValue(index, 'y', parseFloat(e.target.value) || 0)}
-                      style={{
-                        width: '100%',
-                        fontSize: 11.5,
-                        background: 'var(--surface)',
-                        border: '1px solid var(--line)',
-                        borderRadius: 9,
-                        padding: '6px 7px',
-                        color: '#203547',
-                        fontFamily: 'monospace',
-                        outline: 'none',
-                      }}
+                      className={css.cornerInput}
                     />
                   </React.Fragment>
                 ))}

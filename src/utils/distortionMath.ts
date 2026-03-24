@@ -7,8 +7,8 @@ import type {
   FieldCell,
   DistortedPosition,
   OverlayStats,
-} from '../types/wafer';
-import { applyIndependentTransformUm } from './overlayTransform';
+} from '../types/wafer.ts';
+import { applyIndependentTransformUm } from './overlayTransform.ts';
 
 const NM_TO_UM = 1e-3;
 

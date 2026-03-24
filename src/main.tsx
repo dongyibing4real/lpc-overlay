@@ -1,8 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import App from './App.tsx';
-import { useAgentStore } from './store/useAgentStore';
-import { useWaferStore } from './store/useWaferStore';
+import App from './app/AppShell.tsx';
+import { useAgentStore } from './state/agentStore';
+import { useWaferStore } from './state/waferStore';
 
 if (typeof window !== 'undefined' && window.location.search.includes('showcase=1')) {
   (

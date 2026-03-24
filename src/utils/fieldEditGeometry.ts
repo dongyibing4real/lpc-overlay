@@ -1,18 +1,17 @@
-import type { DistortedPosition, CornerOverlay, FieldTransformOverride, Point } from '../types/wafer';
-import { applyIndependentTransformUm } from './overlayTransform';
+import type { DistortedPosition, CornerOverlay, FieldTransformOverride, Point } from '../types/wafer.ts';
+import { applyIndependentTransformUm } from './overlayTransform.ts';
 
 export const FIELD_EDIT_RENDER_SCALE = 10000;
+export const FIELD_EDIT_TRANSFORM_LIMITS: { [K in keyof FieldTransformOverride]: [number, number] } = {
+  Tx: [-2000, 2000],
+  Ty: [-2000, 2000],
+  theta: [-1200, 1200],
+  M: [-300, 300],
+  Sx: [-300, 300],
+  Sy: [-300, 300],
+};
 
 type CornerTuplePoint = [Point, Point, Point, Point];
-
-function getFieldLocalCorners(fieldHalfW: number, fieldHalfH: number): CornerTuplePoint {
-  return [
-    { x: -fieldHalfW, y: fieldHalfH },
-    { x: fieldHalfW, y: fieldHalfH },
-    { x: fieldHalfW, y: -fieldHalfH },
-    { x: -fieldHalfW, y: -fieldHalfH },
-  ];
-}
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -49,14 +48,106 @@ function getQuadCenter(quad: CornerTuplePoint): Point {
   };
 }
 
-function transformFieldLocalPoint(localPoint: Point, transform: FieldTransformOverride): Point {
+function buildQuadAxesUm(
+  quad: CornerTuplePoint,
+  fieldHalfW: number,
+  fieldHalfH: number,
+) {
+  return {
+    xAxis: {
+      x: ((quad[1].x - quad[0].x) + (quad[2].x - quad[3].x)) / (4 * fieldHalfW),
+      y: ((quad[1].y - quad[0].y) + (quad[2].y - quad[3].y)) / (4 * fieldHalfW),
+    },
+    yAxis: {
+      x: ((quad[0].x - quad[3].x) + (quad[1].x - quad[2].x)) / (4 * fieldHalfH),
+      y: ((quad[0].y - quad[3].y) + (quad[1].y - quad[2].y)) / (4 * fieldHalfH),
+    },
+  };
+}
+
+function projectPointToLocalUm(point: Point, center: Point, xAxis: Point, yAxis: Point): Point {
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+  const det = xAxis.x * yAxis.y - xAxis.y * yAxis.x;
+
+  if (Math.abs(det) < 1e-9) {
+    return { x: 0, y: 0 };
+  }
+
+  return {
+    x: (dx * yAxis.y - dy * yAxis.x) / det,
+    y: (dy * xAxis.x - dx * xAxis.y) / det,
+  };
+}
+
+function mapLocalToWorldUm(localPoint: Point, center: Point, xAxis: Point, yAxis: Point): Point {
+  return {
+    x: center.x + xAxis.x * localPoint.x + yAxis.x * localPoint.y,
+    y: center.y + xAxis.y * localPoint.x + yAxis.y * localPoint.y,
+  };
+}
+
+function rotatePointAroundCenterUm(point: Point, center: Point, rotationUrad: number): Point {
+  const theta = rotationUrad * 1e-6;
+  const cosTheta = Math.cos(theta);
+  const sinTheta = Math.sin(theta);
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+
+  return {
+    x: center.x + cosTheta * dx - sinTheta * dy,
+    y: center.y + sinTheta * dx + cosTheta * dy,
+  };
+}
+
+export function mergeFieldTransformOverride(
+  current: FieldTransformOverride | undefined,
+  patch: Partial<FieldTransformOverride>,
+): FieldTransformOverride | undefined {
+  const next: FieldTransformOverride = {
+    Tx: 0,
+    Ty: 0,
+    theta: 0,
+    M: 0,
+    Sx: 0,
+    Sy: 0,
+    ...current,
+    ...patch,
+  };
+  return isZeroFieldTransform(next) ? undefined : next;
+}
+
+function scaleFieldLocalPoint(localPoint: Point, transform: FieldTransformOverride): Point {
   return applyIndependentTransformUm(localPoint, {
     translationNm: { x: 0, y: 0 },
-    rotationUrad: transform.theta,
+    rotationUrad: 0,
     magnificationPpm: transform.M,
     asymScaleXPpm: transform.Sx,
     asymScaleYPpm: transform.Sy,
   });
+}
+
+function transformPointWithFieldTransformUm(
+  point: Point,
+  referenceQuad: CornerTuplePoint,
+  fieldHalfW: number,
+  fieldHalfH: number,
+  transform: FieldTransformOverride,
+): Point {
+  const center = getQuadCenter(referenceQuad);
+  const { xAxis, yAxis } = buildQuadAxesUm(referenceQuad, fieldHalfW, fieldHalfH);
+  const translation = {
+    x: transform.Tx * 1e-3,
+    y: transform.Ty * 1e-3,
+  };
+  const localPoint = projectPointToLocalUm(point, center, xAxis, yAxis);
+  const scaledLocal = scaleFieldLocalPoint(localPoint, transform);
+  const scaledWorld = mapLocalToWorldUm(scaledLocal, center, xAxis, yAxis);
+  const rotatedWorld = rotatePointAroundCenterUm(scaledWorld, center, transform.theta);
+  return {
+    x: rotatedWorld.x + translation.x,
+    y: rotatedWorld.y + translation.y,
+  };
 }
 
 export function isZeroFieldTransform(transform?: FieldTransformOverride): boolean {
@@ -125,30 +216,12 @@ export function applyFieldTransformToQuadUm(
   fieldHalfW: number,
   fieldHalfH: number,
   transform: FieldTransformOverride | undefined,
+  referenceQuad: CornerTuplePoint = quad,
 ): CornerTuplePoint {
   if (isZeroFieldTransform(transform)) return quad;
-
-  const center = getQuadCenter(quad);
-  const xAxis = {
-    x: (quad[1].x - quad[0].x) / (2 * fieldHalfW),
-    y: (quad[1].y - quad[0].y) / (2 * fieldHalfW),
-  };
-  const yAxis = {
-    x: (quad[0].x - quad[3].x) / (2 * fieldHalfH),
-    y: (quad[0].y - quad[3].y) / (2 * fieldHalfH),
-  };
-  const translation = {
-    x: transform!.Tx * 1e-3,
-    y: transform!.Ty * 1e-3,
-  };
-
-  return getFieldLocalCorners(fieldHalfW, fieldHalfH).map((corner) => {
-    const local = transformFieldLocalPoint(corner, transform!);
-    return {
-      x: center.x + translation.x + xAxis.x * local.x + yAxis.x * local.y,
-      y: center.y + translation.y + xAxis.y * local.x + yAxis.y * local.y,
-    };
-  }) as CornerTuplePoint;
+  return quad.map((corner) => (
+    transformPointWithFieldTransformUm(corner, referenceQuad, fieldHalfW, fieldHalfH, transform!)
+  )) as CornerTuplePoint;
 }
 
 export function applyCornerOverlayToQuadUm(

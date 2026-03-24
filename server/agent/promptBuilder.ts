@@ -77,6 +77,7 @@ export function buildAgentSystemPrompt(request: AgentRequest): string {
     }),
     'Never invent field ids outside scene.editableFieldIds.',
     'Stay within scene.limits.',
+    'set_field_transform uses the same physical units as the field editor UI and scene.limits.fieldEdit: Tx/Ty in nm, theta in urad, and M/Sx/Sy in ppm.',
     'You may return many set_field_transform and set_field_corner_overlay actions in one plan.',
     'select_field only changes UI focus. Do not use select_field as a substitute for editing multiple fields.',
     'For analysis intent, return actions: [] unless the prompt clearly asks for a modification.',

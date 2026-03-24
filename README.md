@@ -17,15 +17,13 @@ LPC is a browser-based visual sandbox for teams who need realistic wafer overlay
 
 ### Workflow video
 
-<video src="./docs/readme/showcase-workflow.webm" controls muted loop playsinline width="100%"></video>
-
-Direct file: [showcase-workflow.webm](./docs/readme/showcase-workflow.webm)
+<video src="./docs/readme/showcase-field-edit.mp4" controls muted loop playsinline width="100%"></video>
 
 ### Agent workflow
 
 ![LPC Overlay agent workflow showcase](./docs/readme/showcase-agent.gif)
 
-### Local field editor
+### Per-field editing
 
 ![LPC Overlay field edit showcase](./docs/readme/showcase-field-edit.gif)
 
@@ -54,7 +52,7 @@ Direct file: [showcase-workflow.webm](./docs/readme/showcase-workflow.webm)
 
 ## 30-Second Demo
 
-1. Start the app with `npm run dev`
+1. Start the full app with `npm run dev:full`
 2. Click `Load Complex Demo`
 3. Compare `Actual Map` and `Distortion Vector Map`
 4. Select a field and shape it in the floating `Field Editor`
@@ -129,6 +127,8 @@ This gives you a good "default story" for the product without having to manually
 
 ## Using LPC Agent
 
+The agent UI depends on the local agent backend. For the complete development setup, run `npm run dev:full`, which starts both the Vite app and the local agent server. If you only run `npm run dev`, the core UI still works, but agent requests will fail until the backend is started separately with `npm run agent`.
+
 1. Click the floating `LPC Agent` button to open the panel.
 2. Open `Settings` once to choose the active model source and fill in the connection details.
 3. Pick a prompt shortcut such as `Generate Plan`, then describe the scene change or analysis you want.
@@ -168,6 +168,7 @@ Notes:
 - Zustand + Immer for state management
 - D3 for zoom / pan interaction
 - Vite for development and build tooling
+- Express + TSX for the local agent backend
 
 ## Getting Started
 
@@ -182,13 +183,28 @@ Notes:
 npm install
 ```
 
-### Run the development server
+### Run the full development environment
+
+```bash
+npm run dev:full
+```
+
+This starts:
+
+- The Vite app at [http://localhost:5173](http://localhost:5173)
+- The local agent backend at [http://localhost:8787](http://localhost:8787)
+
+If you only want the front-end UI, you can still run:
 
 ```bash
 npm run dev
 ```
 
-Then open [http://localhost:5173](http://localhost:5173).
+If you want to run the backend separately, use:
+
+```bash
+npm run agent
+```
 
 ### Create a production build
 

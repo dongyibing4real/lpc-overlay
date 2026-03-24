@@ -127,9 +127,75 @@ function quadCenter(quad: CornerTuple<Vec2>): Vec2 {
   ];
 }
 
-function transformLocalPoint(
+function buildQuadAxesPx(
+  quad: CornerTuple<Vec2>,
+  fieldHalfW: number,
+  fieldHalfH: number,
+): { xAxisPxPerUm: Vec2; yAxisPxPerUm: Vec2 } {
+  return {
+    xAxisPxPerUm: [
+      ((quad[1][0] - quad[0][0]) + (quad[2][0] - quad[3][0])) / (4 * fieldHalfW),
+      ((quad[1][1] - quad[0][1]) + (quad[2][1] - quad[3][1])) / (4 * fieldHalfW),
+    ],
+    yAxisPxPerUm: [
+      ((quad[0][0] - quad[3][0]) + (quad[1][0] - quad[2][0])) / (4 * fieldHalfH),
+      ((quad[0][1] - quad[3][1]) + (quad[1][1] - quad[2][1])) / (4 * fieldHalfH),
+    ],
+  };
+}
+
+function projectPointToLocalUm(
+  point: Vec2,
+  centerPx: Vec2,
+  xAxisPxPerUm: Vec2,
+  yAxisPxPerUm: Vec2,
+): Point {
+  const dx = point[0] - centerPx[0];
+  const dy = point[1] - centerPx[1];
+  const det = xAxisPxPerUm[0] * yAxisPxPerUm[1] - xAxisPxPerUm[1] * yAxisPxPerUm[0];
+
+  if (Math.abs(det) < 1e-9) {
+    return { x: 0, y: 0 };
+  }
+
+  return {
+    x: (dx * yAxisPxPerUm[1] - dy * yAxisPxPerUm[0]) / det,
+    y: (dy * xAxisPxPerUm[0] - dx * xAxisPxPerUm[1]) / det,
+  };
+}
+
+function mapLocalToPixel(
   localPoint: Point,
+  centerPx: Vec2,
+  xAxisPxPerUm: Vec2,
+  yAxisPxPerUm: Vec2,
+): Vec2 {
+  return [
+    centerPx[0] + xAxisPxPerUm[0] * localPoint.x + yAxisPxPerUm[0] * localPoint.y,
+    centerPx[1] + xAxisPxPerUm[1] * localPoint.x + yAxisPxPerUm[1] * localPoint.y,
+  ];
+}
+
+function rotatePointAroundCenterPx(
+  point: Vec2,
+  centerPx: Vec2,
   rotationUrad: number,
+  parameterScale: number,
+): Vec2 {
+  const theta = rotationUrad * parameterScale * 1e-6;
+  const cosTheta = Math.cos(theta);
+  const sinTheta = Math.sin(theta);
+  const dx = point[0] - centerPx[0];
+  const dy = point[1] - centerPx[1];
+
+  return [
+    centerPx[0] + cosTheta * dx - sinTheta * dy,
+    centerPx[1] + sinTheta * dx + cosTheta * dy,
+  ];
+}
+
+function scaleLocalPoint(
+  localPoint: Point,
   magnificationPpm: number,
   asymScaleXPpm: number,
   asymScaleYPpm: number,
@@ -137,11 +203,40 @@ function transformLocalPoint(
 ): Point {
   return applyIndependentTransformUm(localPoint, {
     translationNm: { x: 0, y: 0 },
-    rotationUrad: rotationUrad * parameterScale,
+    rotationUrad: 0,
     magnificationPpm: magnificationPpm * parameterScale,
     asymScaleXPpm: asymScaleXPpm * parameterScale,
     asymScaleYPpm: asymScaleYPpm * parameterScale,
   });
+}
+
+function transformPointWithRenderedFieldTransform(
+  point: Vec2,
+  centerPx: Vec2,
+  xAxisPxPerUm: Vec2,
+  yAxisPxPerUm: Vec2,
+  override: FieldTransformOverride,
+  pxPerUm: number,
+  renderScale: number,
+): Vec2 {
+  const translationPx: Vec2 = [
+    override.Tx * NM_TO_UM * pxPerUm * renderScale,
+    -override.Ty * NM_TO_UM * pxPerUm * renderScale,
+  ];
+  const localPoint = projectPointToLocalUm(point, centerPx, xAxisPxPerUm, yAxisPxPerUm);
+  const scaledLocal = scaleLocalPoint(
+    localPoint,
+    override.M,
+    override.Sx,
+    override.Sy,
+    renderScale,
+  );
+  const scaledWorld = mapLocalToPixel(scaledLocal, centerPx, xAxisPxPerUm, yAxisPxPerUm);
+  const rotatedWorld = rotatePointAroundCenterPx(scaledWorld, centerPx, override.theta, renderScale);
+  return [
+    rotatedWorld[0] + translationPx[0],
+    rotatedWorld[1] + translationPx[1],
+  ];
 }
 
 export function computeRenderedFieldFrame(
@@ -191,37 +286,62 @@ export function applyFieldTransformToRenderedQuad(
   override: FieldTransformOverride | undefined,
   pxPerUm: number,
   renderScale: number,
+  referenceQuad: CornerTuple<Vec2> = quad,
 ): CornerTuple<Vec2> {
   if (!override) return quad;
 
+  const centerPx = quadCenter(referenceQuad);
+  const { xAxisPxPerUm, yAxisPxPerUm } = buildQuadAxesPx(referenceQuad, fieldHalfW, fieldHalfH);
+
+  return quad.map((corner) => (
+    transformPointWithRenderedFieldTransform(
+      corner,
+      centerPx,
+      xAxisPxPerUm,
+      yAxisPxPerUm,
+      override,
+      pxPerUm,
+      renderScale,
+    )
+  )) as CornerTuple<Vec2>;
+}
+
+export function invertFieldTransformPointPx(
+  pointPx: Vec2,
+  quad: CornerTuple<Vec2>,
+  fieldHalfW: number,
+  fieldHalfH: number,
+  override: FieldTransformOverride | undefined,
+  pxPerUm: number,
+  renderScale: number,
+): Vec2 {
+  if (!override) return pointPx;
+
   const centerPx = quadCenter(quad);
-  const xAxisPxPerUm: Vec2 = [
-    (quad[1][0] - quad[0][0]) / (2 * fieldHalfW),
-    (quad[1][1] - quad[0][1]) / (2 * fieldHalfW),
-  ];
-  const yAxisPxPerUm: Vec2 = [
-    (quad[0][0] - quad[3][0]) / (2 * fieldHalfH),
-    (quad[0][1] - quad[3][1]) / (2 * fieldHalfH),
-  ];
+  const { xAxisPxPerUm, yAxisPxPerUm } = buildQuadAxesPx(quad, fieldHalfW, fieldHalfH);
   const translationPx: Vec2 = [
     override.Tx * NM_TO_UM * pxPerUm * renderScale,
     -override.Ty * NM_TO_UM * pxPerUm * renderScale,
   ];
-
-  return getLocalCorners(fieldHalfW, fieldHalfH).map((corner) => {
-    const transformed = transformLocalPoint(
-      corner,
-      override.theta,
-      override.M,
-      override.Sx,
-      override.Sy,
-      renderScale,
-    );
-    return [
-      centerPx[0] + translationPx[0] + xAxisPxPerUm[0] * transformed.x + yAxisPxPerUm[0] * transformed.y,
-      centerPx[1] + translationPx[1] + xAxisPxPerUm[1] * transformed.x + yAxisPxPerUm[1] * transformed.y,
-    ] as Vec2;
-  }) as CornerTuple<Vec2>;
+  const scaleX = 1 + (override.M + override.Sx) * renderScale * 1e-6;
+  const scaleY = 1 + (override.M + override.Sy) * renderScale * 1e-6;
+  const translated: Vec2 = [
+    pointPx[0] - translationPx[0],
+    pointPx[1] - translationPx[1],
+  ];
+  const unrotated = rotatePointAroundCenterPx(translated, centerPx, -override.theta, renderScale);
+  const localAfterScale = projectPointToLocalUm(unrotated, centerPx, xAxisPxPerUm, yAxisPxPerUm);
+  const safeScaleX = Math.abs(scaleX) < 1e-9 ? 1 : scaleX;
+  const safeScaleY = Math.abs(scaleY) < 1e-9 ? 1 : scaleY;
+  return mapLocalToPixel(
+    {
+      x: localAfterScale.x / safeScaleX,
+      y: localAfterScale.y / safeScaleY,
+    },
+    centerPx,
+    xAxisPxPerUm,
+    yAxisPxPerUm,
+  );
 }
 
 export function applyCornerOverlayToQuad(

@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import type { WaferLayoutHook } from '../../hooks/useWaferLayout';
-import { useWaferStore } from '../../store/useWaferStore';
+import { useWaferStore } from '../../state/waferStore';
 import { getOverlayColor } from '../../utils/colorScale';
 import {
   applyCornerOverlayToQuad,
@@ -53,23 +53,27 @@ export const FieldVectorLayer: React.FC<Props> = memo(({ layout, clipId, zoomSca
             GEOMETRY_RENDER_SCALE,
           )
         : null;
-      const transformedQuad = baseFrame
-        ? applyFieldTransformToRenderedQuad(
+      const cornerAdjustedQuad = baseFrame
+        ? applyCornerOverlayToQuad(
           baseFrame.cornersPx,
+          perFieldCornerOverlays[field.id],
+          layout.pxPerUm,
+          GEOMETRY_RENDER_SCALE,
+        )
+        : null;
+      const transformedQuad = cornerAdjustedQuad
+        ? applyFieldTransformToRenderedQuad(
+          cornerAdjustedQuad,
           layoutConfig.fieldWidthMm * 500,
           layoutConfig.fieldHeightMm * 500,
           perFieldTransformOverrides[field.id],
           layout.pxPerUm,
           GEOMETRY_RENDER_SCALE,
+          baseFrame!.cornersPx,
         )
         : null;
       const polygonPoints = transformedQuad
-        ? applyCornerOverlayToQuad(
-          transformedQuad,
-          perFieldCornerOverlays[field.id],
-          layout.pxPerUm,
-          GEOMETRY_RENDER_SCALE,
-        ).map((c) => `${c[0]},${c[1]}`).join(' ')
+        ? transformedQuad.map((c) => `${c[0]},${c[1]}`).join(' ')
         : null;
 
       let arrow = null as null | {

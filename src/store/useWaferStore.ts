@@ -1,130 +1,35 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type {
-  WaferLayoutConfig,
-  WaferDistortionParams,
-  FieldDistortionParams,
-  EPEConfig,
-  ViewState,
-  OverlayRecord,
-  DistortedPosition,
-  FieldCell,
   CornerOverlay,
+  DistortedPosition,
+  EPEConfig,
+  FieldCell,
+  FieldDistortionParams,
   FieldTransformOverride,
+  OverlayRecord,
+  ViewState,
+  WaferDistortionParams,
+  WaferLayoutConfig,
   WaferSceneSnapshot,
 } from '../types/wafer';
+import {
+  DEFAULT_EPE,
+  DEFAULT_FIELD,
+  DEFAULT_LAYOUT,
+  DEFAULT_VIEW,
+  DEFAULT_WAFER,
+  SHOWCASE_EPE,
+  SHOWCASE_FIELD,
+  SHOWCASE_VIEW,
+  SHOWCASE_WAFER,
+  ZERO_FIELD_TRANSFORM,
+  ZERO_OVERLAY,
+} from '../domain/wafer/defaults';
+import { recomputeDistortionResults, buildImportedDistortionResults } from '../domain/wafer/distortionEngine';
+import { createDefaultSceneSnapshot } from '../domain/wafer/sceneSnapshot';
 import { generateFieldGrid } from '../utils/waferGeometry';
-import {
-  computeFieldDistortion,
-  interpolateDieResultsFromField,
-} from '../utils/distortionMath';
-import {
-  applyCornerOverlayToQuadUm,
-  applyFieldEditToFieldResult,
-  applyFieldTransformToQuadUm,
-  buildDistortedCornersFromOffsets,
-  isZeroFieldTransform,
-  isZeroOverlay,
-} from '../utils/fieldEditGeometry';
-
-// ─── Defaults ─────────────────────────────────────────────────────────────────
-
-const DEFAULT_LAYOUT: WaferLayoutConfig = {
-  waferDiameterMm: 300,
-  edgeExclusionMm: 3,
-  fieldWidthMm: 26,
-  fieldHeightMm: 33,
-  diesPerFieldX: 4,
-  diesPerFieldY: 5,
-  fieldOffsetX: 0,
-  fieldOffsetY: 0,
-};
-
-const DEFAULT_WAFER: WaferDistortionParams = {
-  Tx: 0, Ty: 0, theta: 0, M: 0, Sx: 0, Sy: 0,
-};
-
-const DEFAULT_FIELD: FieldDistortionParams = {
-  FTx: 0, FTy: 0, Ftheta: 0, FM: 0, FSx: 0, FSy: 0,
-};
-
-const DEFAULT_EPE: EPEConfig = {
-  mode: 'none', magnitude: 0, systematicAngle: 0, seed: 42,
-};
-
-const DEFAULT_VIEW: ViewState = {
-  granularity: 'die',
-  dataSource: 'parameters',
-  arrowScaleFactor: 10000,
-  showDisplacementVectors: true,
-  showFieldBoundaries: true,
-  showDieBoundaries: true,
-  colorMapRange: [0, 1000],
-};
-
-const ZERO_OVERLAY: CornerOverlay = {
-  cornerDx: [0, 0, 0, 0],
-  cornerDy: [0, 0, 0, 0],
-};
-
-const ZERO_FIELD_TRANSFORM: FieldTransformOverride = {
-  Tx: 0,
-  Ty: 0,
-  theta: 0,
-  M: 0,
-  Sx: 0,
-  Sy: 0,
-};
-
-const SHOWCASE_WAFER: WaferDistortionParams = {
-  Tx: 110,
-  Ty: -90,
-  theta: 1.4,
-  M: 1.8,
-  Sx: -1.2,
-  Sy: 1.5,
-};
-
-const SHOWCASE_FIELD: FieldDistortionParams = {
-  FTx: -42,
-  FTy: 36,
-  Ftheta: -0.8,
-  FM: 0.9,
-  FSx: 1.2,
-  FSy: -0.7,
-};
-
-const SHOWCASE_EPE: EPEConfig = {
-  mode: 'systematic',
-  magnitude: 18,
-  systematicAngle: 28,
-  seed: 42,
-};
-
-const SHOWCASE_VIEW: Partial<ViewState> = {
-  granularity: 'die',
-  dataSource: 'parameters',
-  arrowScaleFactor: 52000,
-  showDisplacementVectors: true,
-  showFieldBoundaries: true,
-  showDieBoundaries: true,
-  colorMapRange: [0, 320],
-};
-
-function createDefaultSceneSnapshot(): WaferSceneSnapshot {
-  return structuredClone({
-    layoutConfig: DEFAULT_LAYOUT,
-    waferDistortion: DEFAULT_WAFER,
-    fieldDistortion: DEFAULT_FIELD,
-    epeConfig: DEFAULT_EPE,
-    viewState: DEFAULT_VIEW,
-    importedData: null,
-    perCornerOverlays: {},
-    selectedFieldId: null,
-    perFieldTransformOverrides: {},
-    perFieldCornerOverlays: {},
-  });
-}
+import { isZeroOverlay, mergeFieldTransformOverride } from '../utils/fieldEditGeometry';
 
 function createShowcaseFieldTransforms(): Record<string, FieldTransformOverride> {
   const entries: Array<[string, FieldTransformOverride]> = [];
@@ -187,92 +92,6 @@ function createShowcaseFieldCorners(): Record<string, CornerOverlay> {
   return Object.fromEntries(entries);
 }
 
-function getResultQuad(result: DistortedPosition) {
-  if (result.distortedCorners) return result.distortedCorners;
-  if (result.designCorners && result.cornerDx && result.cornerDy) {
-    return buildDistortedCornersFromOffsets(result.designCorners, result.cornerDx, result.cornerDy)!;
-  }
-  throw new Error(`Result ${result.entityId} is missing corner geometry`);
-}
-
-function applyOverlayToResult(result: DistortedPosition, overlay?: CornerOverlay): DistortedPosition {
-  if (!overlay) return result;
-
-  const baseCdx = result.cornerDx ?? [result.dx, result.dx, result.dx, result.dx];
-  const baseCdy = result.cornerDy ?? [result.dy, result.dy, result.dy, result.dy];
-  const newCornerDx: [number, number, number, number] = [
-    baseCdx[0] + overlay.cornerDx[0],
-    baseCdx[1] + overlay.cornerDx[1],
-    baseCdx[2] + overlay.cornerDx[2],
-    baseCdx[3] + overlay.cornerDx[3],
-  ];
-  const newCornerDy: [number, number, number, number] = [
-    baseCdy[0] + overlay.cornerDy[0],
-    baseCdy[1] + overlay.cornerDy[1],
-    baseCdy[2] + overlay.cornerDy[2],
-    baseCdy[3] + overlay.cornerDy[3],
-  ];
-  const newDx = (newCornerDx[0] + newCornerDx[1] + newCornerDx[2] + newCornerDx[3]) / 4;
-  const newDy = (newCornerDy[0] + newCornerDy[1] + newCornerDy[2] + newCornerDy[3]) / 4;
-
-  return {
-    ...result,
-    dx: newDx,
-    dy: newDy,
-    magnitude: Math.sqrt(newDx * newDx + newDy * newDy),
-    cornerDx: newCornerDx,
-    cornerDy: newCornerDy,
-    distortedCorners: result.designCorners
-      ? [
-        { x: result.designCorners[0].x + newCornerDx[0] * 1e-3, y: result.designCorners[0].y + newCornerDy[0] * 1e-3 },
-        { x: result.designCorners[1].x + newCornerDx[1] * 1e-3, y: result.designCorners[1].y + newCornerDy[1] * 1e-3 },
-        { x: result.designCorners[2].x + newCornerDx[2] * 1e-3, y: result.designCorners[2].y + newCornerDy[2] * 1e-3 },
-        { x: result.designCorners[3].x + newCornerDx[3] * 1e-3, y: result.designCorners[3].y + newCornerDy[3] * 1e-3 },
-      ]
-      : result.distortedCorners,
-  };
-}
-
-function removeOverlayFromResult(result: DistortedPosition, overlay?: CornerOverlay): DistortedPosition {
-  if (!overlay) return result;
-
-  const baseCdx = result.cornerDx ?? [result.dx, result.dx, result.dx, result.dx];
-  const baseCdy = result.cornerDy ?? [result.dy, result.dy, result.dy, result.dy];
-  const newCornerDx: [number, number, number, number] = [
-    baseCdx[0] - overlay.cornerDx[0],
-    baseCdx[1] - overlay.cornerDx[1],
-    baseCdx[2] - overlay.cornerDx[2],
-    baseCdx[3] - overlay.cornerDx[3],
-  ];
-  const newCornerDy: [number, number, number, number] = [
-    baseCdy[0] - overlay.cornerDy[0],
-    baseCdy[1] - overlay.cornerDy[1],
-    baseCdy[2] - overlay.cornerDy[2],
-    baseCdy[3] - overlay.cornerDy[3],
-  ];
-  const newDx = (newCornerDx[0] + newCornerDx[1] + newCornerDx[2] + newCornerDx[3]) / 4;
-  const newDy = (newCornerDy[0] + newCornerDy[1] + newCornerDy[2] + newCornerDy[3]) / 4;
-
-  return {
-    ...result,
-    dx: newDx,
-    dy: newDy,
-    magnitude: Math.sqrt(newDx * newDx + newDy * newDy),
-    cornerDx: newCornerDx,
-    cornerDy: newCornerDy,
-    distortedCorners: result.designCorners
-      ? [
-        { x: result.designCorners[0].x + newCornerDx[0] * 1e-3, y: result.designCorners[0].y + newCornerDy[0] * 1e-3 },
-        { x: result.designCorners[1].x + newCornerDx[1] * 1e-3, y: result.designCorners[1].y + newCornerDy[1] * 1e-3 },
-        { x: result.designCorners[2].x + newCornerDx[2] * 1e-3, y: result.designCorners[2].y + newCornerDy[2] * 1e-3 },
-        { x: result.designCorners[3].x + newCornerDx[3] * 1e-3, y: result.designCorners[3].y + newCornerDy[3] * 1e-3 },
-      ]
-      : result.distortedCorners,
-  };
-}
-
-// ─── Store Interface ───────────────────────────────────────────────────────────
-
 interface WaferState {
   layoutConfig: WaferLayoutConfig;
   waferDistortion: WaferDistortionParams;
@@ -309,8 +128,6 @@ interface WaferState {
   recomputeLayout: () => void;
   recomputeDistortions: () => void;
 }
-
-// ─── Store ─────────────────────────────────────────────────────────────────────
 
 const initialFields = generateFieldGrid(DEFAULT_LAYOUT);
 
@@ -360,14 +177,7 @@ export const useWaferStore = create<WaferState>()(
       set((s) => {
         s.importedData = data;
         s.viewState.dataSource = 'imported';
-        s.distortionResults = data.map((r, i) => ({
-          entityId: `imported_${i}`,
-          designPos: { x: r.x, y: r.y },
-          distortedPos: { x: r.x + r.dx * 1e-3, y: r.y + r.dy * 1e-3 },
-          dx: r.dx,
-          dy: r.dy,
-          magnitude: Math.sqrt(r.dx * r.dx + r.dy * r.dy),
-        }));
+        s.distortionResults = buildImportedDistortionResults(data);
       });
     },
 
@@ -381,14 +191,9 @@ export const useWaferStore = create<WaferState>()(
 
     setCornerOverlay(id, overlay) {
       set((s) => {
-        const prevOverlay = s.perCornerOverlays[id];
         s.perCornerOverlays[id] = overlay;
-        const idx = s.distortionResults.findIndex((r) => r.entityId === id);
-        if (idx !== -1) {
-          const baseResult = removeOverlayFromResult(s.distortionResults[idx], prevOverlay);
-          s.distortionResults[idx] = applyOverlayToResult(baseResult, overlay);
-        }
       });
+      get().recomputeDistortions();
     },
 
     clearCornerOverlays() {
@@ -406,9 +211,8 @@ export const useWaferStore = create<WaferState>()(
 
     setFieldTransformOverride(id, patch) {
       set((s) => {
-        const current = s.perFieldTransformOverrides[id] ?? ZERO_FIELD_TRANSFORM;
-        const next = { ...current, ...patch };
-        if (isZeroFieldTransform(next)) {
+        const next = mergeFieldTransformOverride(s.perFieldTransformOverrides[id], patch);
+        if (!next) {
           delete s.perFieldTransformOverrides[id];
         } else {
           s.perFieldTransformOverrides[id] = next;
@@ -548,92 +352,25 @@ export const useWaferStore = create<WaferState>()(
     },
 
     recomputeDistortions() {
-      const {
-        fields,
-        layoutConfig,
-        waferDistortion,
-        fieldDistortion,
-        epeConfig,
-        viewState,
-        importedData,
-        perCornerOverlays,
-        perFieldTransformOverrides,
-        perFieldCornerOverlays,
-      } = get();
-
-      if (viewState.dataSource === 'imported' && importedData) return;
-
-      const fieldHalfW = layoutConfig.fieldWidthMm * 500;
-      const fieldHalfH = layoutConfig.fieldHeightMm * 500;
-      const diesPerField = layoutConfig.diesPerFieldX * layoutConfig.diesPerFieldY;
-
-      const baseFieldResults = fields.map((field) => computeFieldDistortion(
-        field,
-        waferDistortion,
-        fieldDistortion,
-        fieldHalfW,
-        fieldHalfH,
-      ));
-      const baseFieldResultMap = new Map(baseFieldResults.map((result) => [result.entityId, result]));
-
-      const finalFieldQuadMap = new Map(
-        baseFieldResults.map((result) => {
-          const baseFieldQuad = getResultQuad(result);
-          const transformedFieldQuad = applyFieldTransformToQuadUm(
-            baseFieldQuad,
-            fieldHalfW,
-            fieldHalfH,
-            perFieldTransformOverrides[result.entityId],
-          );
-          const finalFieldQuad = applyCornerOverlayToQuadUm(
-            transformedFieldQuad,
-            perFieldCornerOverlays[result.entityId],
-          );
-          return [result.entityId, finalFieldQuad] as const;
-        }),
-      );
-
-      let results: DistortedPosition[];
-
-      if (viewState.granularity === 'die') {
-        results = fields.flatMap((field, fieldIndex) => {
-          const finalQuad = finalFieldQuadMap.get(field.id)!;
-          const fieldResult = baseFieldResultMap.get(field.id)!;
-          return interpolateDieResultsFromField(
-            field,
-            finalQuad,
-            fieldResult,
-            epeConfig,
-            layoutConfig,
-            fieldHalfW,
-            fieldHalfH,
-            fieldIndex * diesPerField,
-          );
+      const state = get();
+      set((s) => {
+        s.distortionResults = recomputeDistortionResults({
+          fields: state.fields,
+          layoutConfig: state.layoutConfig,
+          waferDistortion: state.waferDistortion,
+          fieldDistortion: state.fieldDistortion,
+          epeConfig: state.epeConfig,
+          viewState: state.viewState,
+          importedData: state.importedData,
+          perCornerOverlays: state.perCornerOverlays,
+          perFieldTransformOverrides: state.perFieldTransformOverrides,
+          perFieldCornerOverlays: state.perFieldCornerOverlays,
         });
-      } else {
-        results = fields.map((field) => {
-          const base = baseFieldResultMap.get(field.id)!;
-          return applyFieldEditToFieldResult(
-            base,
-            finalFieldQuadMap.get(field.id)!,
-            fieldHalfW,
-            fieldHalfH,
-          );
-        });
-      }
-
-      // Apply per-entity corner overlays on top of parametric results
-      const overlayKeys = Object.keys(perCornerOverlays);
-      if (overlayKeys.length > 0) {
-        results = results.map((r) => applyOverlayToResult(r, perCornerOverlays[r.entityId]));
-      }
-
-      set((s) => { s.distortionResults = results; });
+      });
     },
   }))
 );
 
-// Populate initial distortion results.
 useWaferStore.getState().recomputeDistortions();
 
 export { ZERO_OVERLAY, ZERO_FIELD_TRANSFORM };

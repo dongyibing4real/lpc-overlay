@@ -1,6 +1,6 @@
 import React, { memo, useId, useMemo } from 'react';
 import { useWaferLayout } from '../../hooks/useWaferLayout';
-import { useWaferStore } from '../../store/useWaferStore';
+import { useWaferStore } from '../../state/waferStore';
 import { getOverlayColorByMag } from '../../utils/colorScale';
 
 interface Props {

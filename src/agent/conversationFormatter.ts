@@ -1,5 +1,5 @@
 import type { AgentAction, AgentHistoryItem, AgentPlan } from '../../shared/agent';
-import { describeAgentAction } from '../components/agent-panel/agentPanelHelpers';
+import { describeAgentAction } from '../features/agent-panel/lib/agentPanelHelpers';
 
 export function summarizeHistoryText(text: string, maxLength = 180): string {
   const compact = text.replace(/\s+/g, ' ').trim();

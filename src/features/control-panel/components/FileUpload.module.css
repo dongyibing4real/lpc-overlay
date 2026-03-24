@@ -1,0 +1,87 @@
+.infoBox {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.infoTitle {
+  font-size: 12px;
+  color: #5d7488;
+  font-weight: 600;
+}
+
+.infoSubtitle {
+  font-size: 10px;
+  color: #90a3b3;
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+}
+
+.unitRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.unitLabel {
+  font-size: 11px;
+  color: #61788d;
+}
+
+.unitToggle {
+  display: flex;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.unitButton {
+  min-width: 46px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.unitButtonActive {
+  composes: unitButton;
+  background: var(--surface);
+  color: var(--text-1);
+  box-shadow: 0 2px 6px rgba(72, 96, 120, 0.08);
+}
+
+.unitButtonInactive {
+  composes: unitButton;
+  background: transparent;
+  color: var(--text-2);
+  box-shadow: none;
+}
+
+.exportButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.exportButton {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #243a4c;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.statusMessage {
+  font-size: 11px;
+  color: #5d7488;
+}

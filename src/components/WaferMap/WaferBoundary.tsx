@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { useWaferStore } from '../../store/useWaferStore';
+import { useWaferStore } from '../../state/waferStore';
 import type { WaferLayoutHook } from '../../hooks/useWaferLayout';
 
 interface Props {

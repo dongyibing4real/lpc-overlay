@@ -1,0 +1,13 @@
+export const DEFAULT_WINDOW_WIDTH = 720;
+export const DEFAULT_WINDOW_HEIGHT = 560;
+export const MIN_WINDOW_WIDTH = 640;
+export const MIN_WINDOW_HEIGHT = 500;
+export const MAX_WINDOW_WIDTH = 920;
+export const MAX_WINDOW_HEIGHT = 820;
+export const FAB_WIDTH = 135;
+export const FAB_HEIGHT = 50;
+export const FLOAT_MARGIN = 24;
+export const PANEL_ANIMATION_MS = 240;
+export const POPUP_ICON_SIZE = 44;
+export const POPUP_ICON_GAP = 8;
+export const FAB_ATTRACT_RADIUS = 180;

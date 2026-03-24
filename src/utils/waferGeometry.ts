@@ -1,4 +1,4 @@
-import type { WaferLayoutConfig, FieldCell, Point } from '../types/wafer';
+import type { WaferLayoutConfig, FieldCell, Point } from '../types/wafer.ts';
 
 function isFieldActive(cx: number, cy: number, fw: number, fh: number, R: number): boolean {
   const halfW = fw / 2;

@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from 'react';
-import { useWaferStore } from '../store/useWaferStore';
+import { useWaferStore } from '../state/waferStore';
 import type { WaferLayoutHook } from './useWaferLayout';
 
 export interface DragDistortionHandlers {

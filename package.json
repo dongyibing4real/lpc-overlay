@@ -8,6 +8,7 @@
     "agent": "tsx server/index.ts",
     "dev:full": "concurrently \"npm run agent\" \"npm run dev\"",
     "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
+    "test": "node --experimental-strip-types tests/wafer-domain.test.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "showcase:gifs": "node scripts/generate-showcases.mjs",

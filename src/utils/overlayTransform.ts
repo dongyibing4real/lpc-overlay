@@ -1,4 +1,4 @@
-import type { Point } from '../types/wafer';
+import type { Point } from '../types/wafer.ts';
 
 const NM_TO_UM = 1e-3;
 const PPM = 1e-6;

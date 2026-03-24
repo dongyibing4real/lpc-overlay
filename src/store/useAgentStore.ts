@@ -3,17 +3,18 @@ import {
   DEFAULT_PROVIDER_CONFIGS,
   type AgentHistoryItem,
   type AgentPlan,
+  type AgentPlanDiagnostics,
   type AgentPromptTemplateId,
   type AgentProviderConfig,
   type AgentProviderId,
 } from '../../shared/agent';
 import type { WaferSceneSnapshot } from '../types/wafer';
 import { useWaferStore } from './useWaferStore';
-import { formatChatHistoryForAgent, summarizeExecutedPlan } from '../agent/conversationFormatter';
-import { humanizeAgentError, requestAgentPlan, validateProviderBeforeRequest } from '../agent/agentApiClient';
-import { applyPlanToSnapshot } from '../agent/sceneCommandExecutor';
-import { captureSceneForAgent } from '../agent/sceneSummaryBuilder';
-import { inferIntent, getTemplateLabel } from '../agent/promptIntent';
+import { formatChatHistoryForAgent, summarizeExecutedPlan } from '../features/agent-panel/lib/conversationFormatter';
+import { humanizeAgentError, requestAgentPlan, validateProviderBeforeRequest } from '../features/agent-panel/lib/agentApiClient';
+import { applyPlanToSnapshot } from '../features/agent-panel/lib/sceneCommandExecutor';
+import { captureSceneForAgent } from '../features/agent-panel/lib/sceneSummaryBuilder';
+import { inferIntent, getTemplateLabel } from '../features/agent-panel/lib/promptIntent';
 
 const STORAGE_KEY = 'overlay-agent-provider-configs';
 
@@ -52,6 +53,7 @@ interface AgentState {
   isLoading: boolean;
   error: string | null;
   draftPlan: AgentPlan | null;
+  draftPlanDiagnostics: AgentPlanDiagnostics | null;
   activePlanMessageId: string | null;
   history: AgentHistoryItem[];
   selectedProviderId: AgentProviderId;
@@ -73,6 +75,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   isLoading: false,
   error: null,
   draftPlan: null,
+  draftPlanDiagnostics: null,
   activePlanMessageId: null,
   history: [],
   selectedProviderId: 'local-openai-compatible',
@@ -125,7 +128,21 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       return;
     }
 
-    set({ isLoading: true, error: null });
+    const now = Date.now();
+    const userItem: AgentHistoryItem = {
+      id: `${now}-user`,
+      role: 'user',
+      text: userInput.trim() || `Used shortcut: ${getTemplateLabel(templateId)}`,
+      createdAt: now - 1,
+    };
+
+    set((current) => ({
+      isLoading: true,
+      error: null,
+      prompt: '',
+      history: [...current.history.slice(-6), userItem],
+    }));
+
     try {
       const plan = await requestAgentPlan({
         intent,
@@ -135,29 +152,22 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         provider,
         scene,
       });
-      const now = Date.now();
-      const userItem: AgentHistoryItem = {
-        id: `${now}-user`,
-        role: 'user',
-        text: userInput.trim() || `Used shortcut: ${getTemplateLabel(templateId)}`,
-        createdAt: now - 1,
-      };
-      const assistantMessageId = `${now}-assistant`;
+      const assistantMessageId = `${Date.now()}-assistant`;
       const historyItem: AgentHistoryItem = {
         id: assistantMessageId,
         role: 'assistant',
         text: plan.plan.analysis ? `${plan.plan.summary}\n\n${plan.plan.analysis}` : plan.plan.summary,
-        createdAt: now,
+        createdAt: Date.now(),
         plan: plan.plan,
         diagnostics: plan.diagnostics,
       };
 
       set((state) => ({
         draftPlan: plan.plan,
+        draftPlanDiagnostics: plan.diagnostics,
         activePlanMessageId: assistantMessageId,
-        history: [...state.history.slice(-6), userItem, historyItem],
+        history: [...state.history.slice(-6), historyItem],
         isLoading: false,
-        prompt: '',
       }));
     } catch (error) {
       set({
@@ -168,7 +178,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   },
 
   discardDraftPlan() {
-    set({ draftPlan: null, activePlanMessageId: null, error: null });
+    set({ draftPlan: null, draftPlanDiagnostics: null, activePlanMessageId: null, error: null });
   },
 
   applyDraftPlan() {
@@ -183,6 +193,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     const now = Date.now();
     set((state) => ({
       draftPlan: null,
+      draftPlanDiagnostics: null,
       activePlanMessageId: null,
       history: [
         ...state.history.slice(-7),

@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import type { WaferLayoutHook } from '../../hooks/useWaferLayout';
-import { useWaferStore } from '../../store/useWaferStore';
+import { useWaferStore } from '../../state/waferStore';
 import {
   applyCornerOverlayToQuad,
   applyFieldTransformToRenderedQuad,
@@ -50,19 +50,20 @@ export const DieGrid: React.FC<Props> = memo(({ layout, variant, clipId }) => {
         layout.toPixel,
         geometryRenderScale,
       );
-      const transformed = applyFieldTransformToRenderedQuad(
+      const cornerAdjusted = applyCornerOverlayToQuad(
         frame.cornersPx,
+        perFieldCornerOverlays[field.id],
+        layout.pxPerUm,
+        geometryRenderScale,
+      );
+      const quad = applyFieldTransformToRenderedQuad(
+        cornerAdjusted,
         fieldHalfWUm,
         fieldHalfHUm,
         perFieldTransformOverrides[field.id],
         layout.pxPerUm,
         geometryRenderScale,
-      );
-      const quad = applyCornerOverlayToQuad(
-        transformed,
-        perFieldCornerOverlays[field.id],
-        layout.pxPerUm,
-        geometryRenderScale,
+        frame.cornersPx,
       );
       // quad = [TL, TR, BR, BL] in pixel space
 
